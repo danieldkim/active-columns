@@ -478,7 +478,10 @@ and "alice", respectively.
 Note that I could pass the "alice" column object to some other code that later
 changes some attribute and saves it.  Each object in the hierachy of objects
 returned by <code>new\_object()</code> has its own <code>save()</code>, etc.
-methods.
+methods.  In the example above, "NY", 1271184169, 1271184168, "dave", "chuck",
+"bob", and "alice", all have their own <code>save()</code> methods.
+<code>save()</code> is recursive in a sense, though.  calling
+<code>save()</code> on "NY" will cause all of its descendants to be saved. 
 
 #### {column family}.find( key\_spec, [super\_column\_name,] [column\_name\_or\_predicate,] event\_listeners )
 
@@ -490,10 +493,10 @@ the *event_listeners* argument.  Both are mandatory.
 
 How the second argument is interpreted depends on the type of column family.
 If the column family is of type "Super" it will be taken as the
-**super\_column\_name**, and an argument after that that is not the last
-argument will be taken as the **column\_name\_or\_predicate**, both optional.
+*super\_column\_name*, and an argument after that that is not the last
+argument will be taken as the *column\_name\_or\_predicate*, both optional.
 If the column family is not Super, a second non-ultimate argument will be taken
-to be the **column\_name\_or\_predicate**, again optional.
+to be the *column\_name\_or\_predicate*, again optional.
 
 The type of objects(s) returned depends on the the combination of column family
 type, column value types, and *key\_spec*, *super\_column\_name*, and 
@@ -568,6 +571,9 @@ setting it on the saved object).  e.g.:
 If <code>save()</code> succeeds, all timestamps of {object} will be updated
 with the new timestamp.  This allows you to subsequently
 <code>destroy()</code> this object if you wish.
+
+<code>save()</code> is recursive, in a sense.  If the object being saved has any
+child objects they will be saved too.
 
 If you save an object with fixed column names, any missing columns will be
 deleted.  If you want to prevent this, you can pass false as the last argument
