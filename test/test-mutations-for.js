@@ -22,7 +22,7 @@ var tests = {
     var alice = Users1.new_object("alice", {
       city: "New York", state: "NY", last_login: 1271184168, sex: "F"
     });
-    var mutations = ActiveColumns.low_level.mutations_for_save_column_family_object(
+    var mutations = ActiveColumns.low_level.mutations_for_save_row_object(
       "ActiveColumnsTest", "Users1", alice)
     assert.equal(4, mutations.length);
     [ 
@@ -39,19 +39,19 @@ var tests = {
     
     alice.timestamps.city = alice.timestamps.last_login = 1270586369995573;
     
-    mutations = ActiveColumns.low_level.mutations_for_destroy_column_family_object(
+    mutations = ActiveColumns.low_level.mutations_for_destroy_row_object(
       "ActiveColumnsTest", "Users1", alice)
     // sys.puts(sys.inspect(mutations, false, null))
     
     alice.timestamps.last_login = 1270586369995574;  
-    mutations = ActiveColumns.low_level.mutations_for_destroy_column_family_object(
+    mutations = ActiveColumns.low_level.mutations_for_destroy_row_object(
       "ActiveColumnsTest", "Users1", alice)
     // sys.puts(sys.inspect(mutations, false, null))
     
     delete alice.city; 
     delete alice.last_login;
     delete alice.sex; // this one should not appear as delete mutation since it has no timestamp
-    mutations = ActiveColumns.low_level.mutations_for_save_column_family_object(
+    mutations = ActiveColumns.low_level.mutations_for_save_row_object(
       "ActiveColumnsTest", "Users1", alice, true);
     assert.equal(3, mutations.length);
     var exp_insert = { name: 'state', value: 'NY', timestamp: 'auto' };
@@ -83,7 +83,7 @@ var tests = {
     // alice.add_column("city", "New York");
     // alice.add_column("state", "NY");
     // alice.add_column("last_login", 1271184168);
-    var mutations = ActiveColumns.low_level.mutations_for_save_column_family_object(
+    var mutations = ActiveColumns.low_level.mutations_for_save_row_object(
       "ActiveColumnsTest", "Users2", alice)
     assert.equal(3, mutations.length);
     [ 
@@ -106,7 +106,7 @@ var tests = {
     // var ny = StateUsers1.new_object("ny");
     // ny.add_column("alice", {sex: "F", city: "New York"});
     // ny.add_column("bob", {sex: "M", city: "Jackson Heights"});
-    var mutations = ActiveColumns.low_level.mutations_for_save_column_family_object("ActiveColumnsTest", "StateUsers1", ny);
+    var mutations = ActiveColumns.low_level.mutations_for_save_row_object("ActiveColumnsTest", "StateUsers1", ny);
     assert.equal(2, mutations.length);
     var expected_mutations = [
       { "name":"alice",
@@ -163,7 +163,7 @@ var tests = {
       { name: 'alice', value: '{"_name":"alice","state":"NY","city":"New York"}', timestamp: 'auto' }, 
       { name: 'bob', value: '{"_name":"bob","state":"NY","city":"Jackson Heights"}', timestamp: 'auto'}
     ]
-    var mutations = ActiveColumns.low_level.mutations_for_save_column_family_object(
+    var mutations = ActiveColumns.low_level.mutations_for_save_row_object(
       "ActiveColumnsTest", "StateUsers2", ny)    
     // sys.puts(" --- ny: " + sys.inspect(ny, false, null))
     // sys.puts(" --- mutations: " + sys.inspect(mutations, false, null))
@@ -203,7 +203,7 @@ var tests = {
     // ny.add_column(2445066).add_column("bob", {city: "Jackson Heights"});
     // ny.add_column(2445067).add_column("chuck", {city: "Elmhurst"});
     // sys.puts(" --- ny: " + sys.inspect(ny, false, null));  
-    var mutations = ActiveColumns.low_level.mutations_for_save_column_family_object("ActiveColumnsTest", "StateLastLoginUsers", ny);
+    var mutations = ActiveColumns.low_level.mutations_for_save_row_object("ActiveColumnsTest", "StateLastLoginUsers", ny);
     var expected_mutations = [
       {
         "name":2445066,

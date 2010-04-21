@@ -22,7 +22,7 @@ An object is a set of columns under a key or super column.  There are 3 types of
 objects in Active Columns, organized in a hierarchy with the low-level column
 "primitives" that correspond to the Column structures of the Cassandra API:
 
-* Column family objects
+* Row objects
     * Super column objects
         * Column objects
         * columns
@@ -30,18 +30,18 @@ objects in Active Columns, organized in a hierarchy with the low-level column
     * columns
 
 
-Column family objects correspond to the row level in Cassandra and are
-defined by a key and column predicate.  Super column objects correspond
-to the super column level in Cassandra and are defined by a key, a
-super column name, and a column predicate.
+Row objects correspond to the row level in Cassandra and are defined by a key
+and column predicate.  Super column objects correspond to the super column
+level in Cassandra and are defined by a key, a super column name, and a column
+predicate.
 
 Column objects correspond to the column level and are defined by a key, an
 optional super column name, and a column name -- notice that column objects live
 at the same level as column primitives.  The internal structure of a column
 object is transparent to Cassandra as it is serialized as JSON within it.
 
-Column family objects contain super column objects, column objects, or column
-primitives.  Super column objects contain column objects or column primitives.
+Row objects contain super column objects, column objects, or column primitives.
+Super column objects contain column objects or column primitives.
 
 ## Static and dynamic column names
 
@@ -98,7 +98,7 @@ here.
 
 ### "Users1" column family
 
-Example of a column family object, under the key "alice":
+Example of a row object, under the key "alice":
 
     {
       key: "alice",
@@ -163,7 +163,7 @@ represent the data in this form:
 
 ### "Users2" column family
 
-Example of a column family object, under the key "alice":
+Example of a row object, under the key "alice":
 
     {
       key: "alice",
@@ -233,7 +233,7 @@ Fixed column names can also be specified at the subcolumn level, i.e. under a
 super column.  **StateUsers1** indexes users by state, and has fixed subcolumn
 names.
 
-Example column family object under the key "NY":
+Example row object under the key "NY":
 
     {
       key: "NY",
@@ -444,9 +444,9 @@ key for this object when saving it.
 
 *init\_cols* will be used to initialize the object created.  it's root form --
 hash or array -- must correspond to that required for the object being created.
-column family objects with dynamic column names, for instance, require an array
-as its *init\_cols*.  a super column object with fixed subcolumn names requires
-a hash.
+Row objects with dynamic column names, for instance, require an array as their
+*init\_cols*.  a super column object with fixed subcolumn names requires a
+hash.
 
 *init\_cols* can be deep if the object being created is a top-level object and it
 has multiple levels of structure -- e.g.:
@@ -468,9 +468,9 @@ has multiple levels of structure -- e.g.:
       }
     ]);
 
-This creates a column family object with the key "NY", with two super columns,
-1271184169 and 1271184169, each of which have column objects "dave" and
-"chuck", and "bob" and "alice", respectively.
+This creates a row object with the key "NY", with two super columns, 1271184169
+and 1271184169, each of which have column objects "dave" and "chuck", and "bob"
+and "alice", respectively.
 
 Note that I could pass the "alice" column object to some other code that later
 changes some attribute and saves it.  Each object in the hierachy of objects
@@ -524,19 +524,19 @@ emit a **"not\_found"** event.  Add a "not\_found" handler to the
 
 #### {column\_family}.remove( key )
 
-**Completely** removes the column family object with given *key*, i.e. removes
-the entire row, all columns, from Cassandra.
+**Completely** removes the row object with given *key*, i.e. removes the entire
+row, all columns, from Cassandra.
  
 #### {object}.get\_id()
 
-Returns the identifier for the {object}.  For column family objects it returns
-the key.  For super column and column objects it returns the _name.
+Returns the identifier for the {object}.  For row objects it returns the key.
+For super column and column objects it returns the _name.
 
 This method is useful when you store cached summary copies of objects as [super]
 column objects in other column families and you want to reuse presentation code
-to handle objects retrieved as column family object from the "master" column
-family and as [super] column objects from other other column families, and want
-a consistent way to refer to the "id" of the object.  
+to handle objects retrieved as row objects from the "master" column family and
+as [super] column objects from other other column families, and want a
+consistent way to refer to the "id" of the object.  
 
 #### {object}.get\_key()
 
@@ -574,8 +574,8 @@ only want to update a small number of columns for a fixed-column-name object.
 #### {object}.destroy( event\_listeners )
 
 Destroys {object}.  Note: this only removes the columns represented in this
-{object} from Cassandra.  To completely remove *all* columns of a column family
-object from Cassandra use <code>{column family}.remove()</code>
+{object} from Cassandra.  To completely remove *all* columns of a row object
+from Cassandra use <code>{column family}.remove()</code>
 
 ## Future Work
 
@@ -595,19 +595,18 @@ and will be implemented soon.
 
 ### Associations
 
-The idea here is that column names can point to column family objects in
-another column family, i.e. the StateUsers2 example.  The column name acts
-essentially as a foreign key.  Active Columns will automatically retrieve the
-associated object from the "master" column family and store summary json data
-in the column value, based on the configuration.  Alternatively, you could
-configure Active Columns to retrieve the associated object on-the-fly.  Also
-alternatively, you could specify that the **value** is the the object, either a
-foreign key to retrieve the object on-the-fly with, or a cached 
-json copy of the object.
+The idea here is that column names can point to row objects in another column
+family, i.e. the StateUsers2 example.  The column name acts essentially as a
+foreign key.  Active Columns will automatically retrieve the associated object
+from the "master" column family and store summary json data in the column
+value, based on the configuration.  Alternatively, you could configure Active
+Columns to retrieve the associated object on-the-fly.  Also alternatively, you
+could specify that the **value** is the the object, either a foreign key to
+retrieve the object on-the-fly with, or a cached json copy of the object.
 
 ### count() method
 
-Count all of the columns within a column family object or super column object. 
+Count all of the columns within a row object or super column object. 
 
 ### json column value type at column name level
 

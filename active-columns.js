@@ -148,13 +148,13 @@ function find_objects() {
   get_request.send();
 }
 
-function save_column_family_object(keyspace, column_family, o, event_listeners, delete_missing_columns) {
+function save_row_object(keyspace, column_family, o, event_listeners, delete_missing_columns) {
   if (typeof delete_missing_columns == 'undefined') {
     delete_missing_columns = true
   }      
   save_object(keyspace, column_family, o.key, o, true, event_listeners, 
     function() {
-      return mutations_for_save_column_family_object(keyspace, column_family, o, delete_missing_columns);
+      return mutations_for_save_row_object(keyspace, column_family, o, delete_missing_columns);
     },
     function(new_timestamp) {
       var cf = get_column_family(keyspace, column_family)
@@ -203,7 +203,7 @@ function remove_object(keyspace, column_family, key, super_column_name, column_n
   request.send();
 }
 
-function mutations_for_save_column_family_object(keyspace, column_family, o, delete_missing_columns) {
+function mutations_for_save_row_object(keyspace, column_family, o, delete_missing_columns) {
   var mutations;
   var cf = get_column_family(keyspace, column_family)
   if (cf.type == "Super") {
@@ -413,14 +413,14 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
   }
 }
 
-function destroy_column_family_object(keyspace, column_family, o, event_listeners) {
+function destroy_row_object(keyspace, column_family, o, event_listeners) {
   save_object(keyspace, column_family, o.key, o, false, event_listeners, 
     function() {
-      return mutations_for_destroy_column_family_object(keyspace, column_family, o);
+      return mutations_for_destroy_row_object(keyspace, column_family, o);
     })
 }
 
-function mutations_for_destroy_column_family_object(keyspace, column_family, o) {
+function mutations_for_destroy_row_object(keyspace, column_family, o) {
   var mutations;
   var cf = get_column_family(keyspace, column_family)
   if (cf.type == "Super") {
@@ -606,7 +606,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
     if (cf.type == "Super") { 
       if ( cf.column_names ) {
         if ( logger.isDebugEnabled() ) {
-          logger.debug("Creating column family object with super column names " +
+          logger.debug("Creating row object with super column names " +
             sys.inspect(cf.column_names) + " under " + path);
         }
         columns.forEach(function(col) {
@@ -617,7 +617,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
       } else {
         o.columns = []
         if ( logger.isDebugEnabled() ) {
-          logger.debug("Creating column family object with dynamic super column names under " + path);
+          logger.debug("Creating row object with dynamic super column names under " + path);
         }
         columns.forEach(function(col) {
           o.columns.push(create_mem_object(keyspace, column_family, key, col.name, 
@@ -628,7 +628,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
       if ( cf.column_names ) {
         o.timestamps = {}
         if ( logger.isDebugEnabled() ) {
-          logger.debug("Creating column family object with column names " +
+          logger.debug("Creating row object with column names " +
             sys.inspect(cf.column_names) + " under " + path);
         }        
         columns.forEach(function(col) {
@@ -639,7 +639,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
       } else {
         o.columns = []
         if ( logger.isDebugEnabled() ) {
-          logger.debug("Creating column family object with dynamic column names under " + path);
+          logger.debug("Creating row object with dynamic column names under " + path);
         }
         columns.forEach(function(col) {
           value = create_mem_object(keyspace, column_family, key, null, 
@@ -693,13 +693,13 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     if (!o.timestamps && cf.column_names) o.timestamps = {};
     o.get_id = function() { return this.key; }
     o.save = function(event_listeners) {
-      save_column_family_object(keyspace, column_family, this, event_listeners);
+      save_row_object(keyspace, column_family, this, event_listeners);
     }
     o.destroy = function(event_listeners, totally) {
       if (totally) {
         get_column_family(keyspace, column_family).remove(this.key, event_listeners);
       } else {
-        destroy_column_family_object(keyspace, column_family, this, event_listeners);        
+        destroy_row_object(keyspace, column_family, this, event_listeners);        
       }
     }    
   }
@@ -778,7 +778,7 @@ exports.initialize_keyspaces = function(ks_configs) {
             }          
             // can initialize with a hash if this is:
             // - a column object, or
-            // - a column family object with fixed column names or json column value type, or
+            // - a row object with fixed column names or json column value type, or
             // - a super column object with fixed subcolumn names or json column value type
             if (column_name || val_type != 'object') {
               for (var name in init_cols) {
@@ -800,7 +800,7 @@ exports.initialize_keyspaces = function(ks_configs) {
           } else if (init_cols.constructor.name == 'Array') {
             // can initialize with an array if this is:
             // - not a column object, *and*
-            // - a column family object with dynamic column names, or
+            // - a row object with dynamic column names, or
             // - a super column object with dynamic column names.
             if (!column_name && !super_column_name && !this.column_names ) {
               var that = this;
@@ -876,9 +876,9 @@ exports.ConsistencyLevel = ConsistencyLevel = {
 
 exports.low_level = {};
 [ 
-  create_mem_object, mutations_for_save_column_family_object, 
+  create_mem_object, mutations_for_save_row_object, 
   mutations_for_save_super_column_object, mutations_for_save_column_object,
-  mutations_for_destroy_column_family_object, 
+  mutations_for_destroy_row_object, 
   mutations_for_destroy_super_column_object, mutation_for_destroy_column_object
 ].forEach(function(f) {
   exports.low_level[f.name] = f;
