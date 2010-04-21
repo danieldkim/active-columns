@@ -1,0 +1,12 @@
+<Keyspace Name="ActiveColumnsTest">
+  <ColumnFamily Name="Users1" CompareWith="UTF8Type" />
+  <ColumnFamily Name="Users2" CompareWith="UTF8Type" />
+  <ColumnFamily Name="StateUsers1" ColumnType="Super"
+    CompareWith="UTF8Type" CompareSubcolumnsWith="UTF8Type" />
+  <ColumnFamily Name="StateUsers2" CompareWith="UTF8Type"/>
+  <ColumnFamily Name="StateLastLoginUsers" ColumnType="Super" 
+	  CompareWith="LongType" CompareSubcolumnsWith="UTF8Type" />
+  <ReplicaPlacementStrategy>org.apache.cassandra.locator.RackUnawareStrategy</ReplicaPlacementStrategy>    
+  <ReplicationFactor>1</ReplicationFactor>
+  <EndPointSnitch>org.apache.cassandra.locator.EndPointSnitch</EndPointSnitch>
+ </Keyspace>
