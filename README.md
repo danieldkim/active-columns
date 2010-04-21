@@ -547,7 +547,7 @@ Returns the key that this {object} lives under.
 Returns the name of the super column that this {object} lives under.  Only
 applies to column objects under a super column.
 
-#### {object}.save( event\_listeners )
+#### {object}.save( event\_listeners, delete\_missing\_columns=true )
 
 Saves {object}.  Returns the "id" (see <code>get_id()</code> method) of the object
 as the first and only parameter to the "success" listener (in addition to
@@ -565,6 +565,11 @@ setting it on the saved object).  e.g.:
 If <code>save()</code> succeeds, all timestamps of {object} will be updated
 with the new timestamp.  This allows you to subsequently
 <code>destroy()</code> this object if you wish.
+
+If you save an object with fixed column names, any missing columns will be
+deleted.  If you want to prevent this, you can pass false as the last argument
+to <code>save()</code>, after the event listeners hash. This is useful when you
+only want to update a small number of columns for a fixed-column-name object.
 
 #### {object}.destroy( event\_listeners )
 
