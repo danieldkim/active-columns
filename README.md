@@ -296,7 +296,8 @@ stored here in this scenario is just a cached copy of small subset of the
 columns of the master User object in the Users1 column family. 
 
 Note that you can also specify fixed names at the super column level.  Doing so
-would cause Active Columns to return the data in this more collapsed form:
+for **StateUsers1** would cause Active Columns to return the data in this more
+collapsed form:
 
     {
       key: "NY",
@@ -305,7 +306,8 @@ would cause Active Columns to return the data in this more collapsed form:
         city: "New York",
         sex: 'F',
         timestamps: {
-          city: 1270586369995573
+          city: 1270586369995573,
+          sex: 1270586369995573
         }
       },
       "bob": {
@@ -313,7 +315,8 @@ would cause Active Columns to return the data in this more collapsed form:
         city: "Jackson Heights",
         sex: 'M',
         timestamps: {
-          city: 1270586369995574
+          city: 1270586369995574,
+          sex: 1270586369995574
         }
       }      
     }
