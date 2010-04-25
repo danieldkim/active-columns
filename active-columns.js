@@ -371,7 +371,7 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
   } 
   
   function now_have_key() {
-    if ( o.get_id() ) {
+    if ( o.id ) {
       now_have_id();
     } else if (!auto_generate_ids) {
       throw "Cannot save/destroy an object without a _name."
@@ -401,7 +401,7 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
        consistency_level: ConsistencyLevel.ONE})
     mutate_request.addListener("success", function(result) {
       if (timestamp_func) timestamp_func(result);
-      if (event_listeners.success) event_listeners.success(o.get_id());
+      if (event_listeners.success) event_listeners.success(o.id);
     })
     mutate_request.addListener("error", function(mess) {
       var error_mess = "Error saving/destroying object under '" + 
@@ -664,20 +664,22 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   // logger.info("--- activate_object path: " + path_s(keyspace, column_family, key, super_column_name, column_name))  
   var cf = get_column_family(keyspace, column_family);
   if (column_name) {
-    o._name = column_name;
-    o.get_id = function() { return this._name; }
-    o.get_key = function() { return key };
-    o.get_super_column_name = function() { return super_column_name};
-    o.save = function(event_listeners, delete_missing_columns) {
-      save_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
-    }
-    o.destroy = function(event_listeners) {
-      destroy_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
+    if (typeof o == 'object') {
+      o._name = column_name;
+      Object.defineProperty(o, "id", { get: function() { return this._name;} });
+      Object.defineProperty(o, "key", { get: function() { return key;} });
+      o.get_super_column_name = function() { return super_column_name};
+      o.save = function(event_listeners, delete_missing_columns) {
+        save_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
+      }
+      o.destroy = function(event_listeners) {
+        destroy_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
+      }
     }
   } else if (super_column_name) {
     o._name = super_column_name;
-    o.get_id = function() { return this._name; }
-    o.get_key = function() { return key };
+    Object.defineProperty(o, "id", { get: function() { return this._name;} });
+    Object.defineProperty(o, "key", { get: function() { return key;} });
     if (!o.columns && !cf.subcolumn_names) o.columns = [];
     if (!o.timestamps && cf.subcolumn_names) o.timestamps = {};
     o.save = function(event_listeners, delete_missing_columns) {
@@ -691,7 +693,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     o.key = key;
     if (!o.columns && !cf.column_names) o.columns = [];      
     if (!o.timestamps && cf.column_names) o.timestamps = {};
-    o.get_id = function() { return this.key; }
+    Object.defineProperty(o, "id", { get: function() { return this.key;} });
     o.save = function(event_listeners) {
       save_row_object(keyspace, column_family, this, event_listeners);
     }

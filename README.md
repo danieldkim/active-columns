@@ -423,6 +423,23 @@ Fixed column names can be specified at the super column or column level with the
 Specify a **column\_value\_type** of "json" if you want column objects instead
 of column primitives.
 
+### Properties
+
+#### {object}.id
+
+Returns the identifier for the {object}. For row objects it returns the key. For
+super column and column objects it returns the _name.
+
+This property is useful when you store cached summary copies of objects as
+[super] column objects in other column families and you want to reuse
+presentation code to handle objects retrieved as row objects from the "master"
+column family and as [super] column objects from other other column families,
+and want a consistent way to refer to the "id" of the object.
+
+#### {object}.key
+
+Returns the key that this {object} lives under.
+
 ### Methods
 
 #### {ActiveColumns}.get\_column\_family( keyspace, column_family )
@@ -529,21 +546,6 @@ emit a **"not\_found"** event. Add a "not\_found" handler to the
 
 **Completely** removes the row object with given *key*, i.e. removes the entire
 row, all columns, from Cassandra.
-
-#### {object}.get\_id()
-
-Returns the identifier for the {object}. For row objects it returns the key. For
-super column and column objects it returns the _name.
-
-This method is useful when you store cached summary copies of objects as [super]
-column objects in other column families and you want to reuse presentation code
-to handle objects retrieved as row objects from the "master" column family and
-as [super] column objects from other other column families, and want a
-consistent way to refer to the "id" of the object.
-
-#### {object}.get\_key()
-
-Returns the key that this {object} lives under.
 
 #### {object}.get\_super\_column\_name()
 

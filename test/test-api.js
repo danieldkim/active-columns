@@ -154,6 +154,8 @@ function test_Users1(test_done) {
   }
   
   function assert_alice(city) {
+    assert.equal("alice", alice.key);
+    assert.equal("alice", alice.id);
     assert.equal(city, alice.city);
     assert.equal("NY", alice.state);
     assert.equal(1271184168, alice.last_login);
@@ -202,7 +204,6 @@ function test_Users1(test_done) {
       success: clean_up_on_exception_for(function(results) {
         assert.equal(2, results.length);
         results.forEach(function(res) {
-          sys.puts(" --- res: " + sys.inspect(res, false, null))
           if (res.key == "alice") {
             alice = res;
             assert_alice("Los Angeles");
@@ -222,6 +223,8 @@ function test_Users1(test_done) {
   }
   
   function assert_bob() {
+    assert.equal("bob", bob.key);
+    assert.equal("bob", bob.id);
     assert.equal("Jackson Heights", bob.city);
     assert.equal("NY", bob.state);
     assert.equal("1271184168", bob.last_login);
@@ -429,6 +432,8 @@ function test_Users2(test_done) {
   }
   
   function assert_bob() {
+    assert.equal("bob", bob.key);
+    assert.equal("bob", bob.id);
     bob_columns.forEach(function(exp_col) {
       assert.ok(_.any(bob.columns, function(col) {
         return exp_col.name == col.name && exp_col.value == col.value;
@@ -564,6 +569,7 @@ function _test_StateUsersX_user_level(test_done, column_family) {
   }
   
   function assert_ny_alice(city) {
+    assert.equal(alice_value._name, ny_alice.id);
     assert.equal(alice_value._name, ny_alice._name);
     assert.equal(city, ny_alice.city);
     assert.equal(alice_value.sex, ny_alice.sex);
@@ -713,12 +719,14 @@ function _test_StateUsersX_state_level(test_done, column_family) {
   }
   
   function assert_ny_alice(city) {
+    assert.equal("alice", ny_alice.id);
     assert.equal("alice", ny_alice._name);
     assert.equal(city, ny_alice.city);
     assert.equal(alice_value.sex, ny_alice.sex);
   }
 
   function assert_ny_bob(city) {
+    assert.equal("bob", ny_bob.id);
     assert.equal("bob", ny_bob._name);
     assert.equal(city, ny_bob.city);
     assert.equal(bob_value.sex, ny_bob.sex);
@@ -870,6 +878,7 @@ function test_StateLastLoginUsers_user_level(test_done) {
   }
   
   function assert_ny_1271184168_alice(city) {
+    assert.equal(alice_value._name, ny_1271184168_alice.id);
     assert.equal(alice_value._name, ny_1271184168_alice._name);
     assert.equal(city, ny_1271184168_alice.city);
     assert.equal(alice_value.sex, ny_1271184168_alice.sex);
@@ -1015,13 +1024,16 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
   }
   
   function assert_ny_1271184168(alice_city, bob_city) {
+    assert.equal(1271184168, ny_1271184168.id);
     assert.equal(1271184168, ny_1271184168._name);
     assert.equal(2, ny_1271184168.columns.length);
     var col = ny_1271184168.columns[0];
+    assert.equal(alice_value._name, col.id);
     assert.equal(alice_value._name, col._name);
     assert.equal(alice_city, col.city);
     assert.equal(alice_value.sex, col.sex);
     col = ny_1271184168.columns[1];
+    assert.equal(bob_value._name, col.id);
     assert.equal(bob_value._name, col._name);
     assert.equal(bob_city, col.city);
     assert.equal(bob_value.sex, col.sex);
@@ -1176,26 +1188,32 @@ function test_StateLastLoginUsers_state_level(test_done) {
   }
   
   function assert_ny_1271184168(alice_city, bob_city) {
+    assert.equal(1271184168, ny_1271184168.id);
     assert.equal(1271184168, ny_1271184168._name);
     assert.equal(2, ny_1271184168.columns.length);
     var col = ny_1271184168.columns[0];
+    assert.equal(alice_value._name, col.id);
     assert.equal(alice_value._name, col._name);
     assert.equal(alice_city, col.city);
     assert.equal(alice_value.sex, col.sex);
     col = ny_1271184168.columns[1];
+    assert.equal(bob_value._name, col.id);
     assert.equal(bob_value._name, col._name);
     assert.equal(bob_city, col.city);
     assert.equal(bob_value.sex, col.sex);
   }
 
   function assert_ny_1271184169(chuck_city, dave_city) {
+    assert.equal(1271184169, ny_1271184169.id);
     assert.equal(1271184169, ny_1271184169._name);
     assert.equal(2, ny_1271184169.columns.length);
     var col = ny_1271184169.columns[0];
+    assert.equal(chuck_value._name, col.id);
     assert.equal(chuck_value._name, col._name);
     assert.equal(chuck_city, col.city);
     assert.equal(chuck_value.sex, col.sex);
     col = ny_1271184169.columns[1];
+    assert.equal(dave_value._name, col.id);
     assert.equal(dave_value._name, col._name);
     assert.equal(dave_city, col.city);
     assert.equal(dave_value.sex, col.sex);
