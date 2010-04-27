@@ -99,6 +99,7 @@ function find_objects() {
         }
         object_result = create_mem_object(keyspace, column_family, key, 
                           super_column_name, column_name, columns, timestamp);
+        object_result.update_last_saved();
       }                                              
     } else if (range) { // list of keyslices 
       object_result = [];
@@ -110,8 +111,10 @@ function find_objects() {
           columns = ks.columns;
         }
         if (columns.length > 0) {
-          object_result.push(create_mem_object(keyspace, column_family, ks.key, 
-            super_column_name, column_name, columns, timestamp))
+          var o = create_mem_object(keyspace, column_family, ks.key, 
+            super_column_name, column_name, columns, timestamp)
+          o.update_last_saved();
+          object_result.push(o);
         }
       })
     } else { // hash of lists of columns or super columns
@@ -125,6 +128,7 @@ function find_objects() {
         if (columns.length > 0) {
           object_result[k] = create_mem_object(keyspace, column_family, ks.key, 
                                super_column_name, column_name, columns, timestamp)
+          object_result[k].update_last_saved();
         }
       }
     }
@@ -148,10 +152,33 @@ function find_objects() {
   get_request.send();
 }
 
+function remove_object(keyspace, column_family, key, super_column_name, column_name, event_listeners) {
+  var cassandra = keyspaces[keyspace].cassandra;
+  var cf = get_column_family(keyspace, column_family)
+  var column_path = {column_family: column_family}
+  if (super_column_name) column_path.super_column = super_column_name;
+  if (column_name) column_path.column = column_name;
+  var request = cassandra.create_request("remove", {
+    keyspace: keyspace, column_path: column_path, timestamp: "auto"
+  })
+  if (event_listeners.success) {
+    request.addListener("success", event_listeners.success);
+  }
+  request.addListener("error", function(mess) {
+    var error_mess = "Error trying to remove " + 
+      path_s(keyspace, column_family, key, super_column_name, column_name) + 
+      ":" + mess;
+    if (event_listeners.error) event_listeners.error(error_mess);
+  });
+  request.send();
+}
+
 function save_row_object(keyspace, column_family, o, event_listeners, delete_missing_columns) {
   if (typeof delete_missing_columns == 'undefined') {
     delete_missing_columns = true
   }      
+  insert_object_callback(keyspace, column_family, event_listeners, 
+                         "after_save_row", o);
   save_object(keyspace, column_family, o.key, o, true, event_listeners, 
     function() {
       return mutations_for_save_row_object(keyspace, column_family, o, delete_missing_columns);
@@ -179,28 +206,7 @@ function save_row_object(keyspace, column_family, o, event_listeners, delete_mis
           });
         }
       } 
-    })
-}
-
-function remove_object(keyspace, column_family, key, super_column_name, column_name, event_listeners) {
-  var cassandra = keyspaces[keyspace].cassandra;
-  var cf = get_column_family(keyspace, column_family)
-  var column_path = {column_family: column_family}
-  if (super_column_name) column_path.super_column = super_column_name;
-  if (column_name) column_path.column = column_name;
-  var request = cassandra.create_request("remove", {
-    keyspace: keyspace, column_path: column_path, timestamp: "auto"
-  })
-  if (event_listeners.success) {
-    request.addListener("success", event_listeners.success);
-  }
-  request.addListener("error", function(mess) {
-    var error_mess = "Error trying to remove " + 
-      path_s(keyspace, column_family, key, super_column_name, column_name) + 
-      ":" + mess;
-    if (event_listeners.error) event_listeners.error(error_mess);
-  });
-  request.send();
+    }, true)
 }
 
 function mutations_for_save_row_object(keyspace, column_family, o, delete_missing_columns) {
@@ -258,13 +264,15 @@ function mutations_for_save_row_object(keyspace, column_family, o, delete_missin
 }
 
 function save_super_column_object(keyspace, column_family, key, o, event_listeners, delete_missing_columns) {
+  insert_object_callback(keyspace, column_family, event_listeners, 
+                         "after_save_super_column", o);
   save_object(keyspace, column_family, key, o, true, event_listeners, 
     function() {
       return mutations_for_save_super_column_object(keyspace, column_family, o, delete_missing_columns);
     },
     function(new_timestamp) {
       handle_new_timestamp_for_super_column_object(keyspace, column_family, new_timestamp, o)
-    })  
+    }, true);  
 }
 
 function handle_new_timestamp_for_super_column_object(keyspace, column_family, new_timestamp, o) {
@@ -327,10 +335,12 @@ function mutations_for_save_super_column_object(keyspace, column_family, o, dele
 }
 
 function save_column_object(keyspace, column_family, key, super_column_name, o, event_listeners) {
+  insert_object_callback(keyspace, column_family, event_listeners, 
+                         "after_save_column", o);
   save_object(keyspace, column_family, key, o, true, event_listeners, 
     function() {
       return mutations_for_save_column_object(super_column_name, o);
-    })  
+    }, null, true);
 }
 
 function mutations_for_save_column_object(super_column_name, o) {
@@ -342,78 +352,19 @@ function mutations_for_save_column_object(super_column_name, o) {
 }
 
 function column_for_save_column_object(o) {
-  return {name: o._name, value: JSON.stringify(o), timestamp: "auto"};  
-}
-
-function save_object(keyspace, column_family, key, o, auto_generate_ids, event_listeners, mutations_func, timestamp_func) {
-  // logger.debug("save_object - keyspace: " + keyspace + ",column_family:" + column_family + 
-  //          ",key:" + key + ",o:" + sys.inspect(o));
-           
-  var cassandra = keyspaces[keyspace].cassandra;
-
-  if ( key ) {
-    now_have_key();
-  } else if (!auto_generate_ids) {
-    throw "Cannot save/destroy an object without a key."
-  } else {
-    var get_uuids = cassandra.create_request("get_uuids")
-    get_uuids.addListener("success", function(result) {
-      o.key = key = result[0];
-      now_have_key();
-    })
-    get_uuids.addListener("error", function(mess) {
-      var error_mess = "Could not get UUID for key when attempting to save object under " + 
-        path_s(keyspace, column_family, key) + ':'  + mess;
-      logger.error(error_mess);
-      if (event_listeners.error) event_listeners.error(error_mess)      
-    });
-    get_uuids.send();
-  } 
-  
-  function now_have_key() {
-    if ( o.id ) {
-      now_have_id();
-    } else if (!auto_generate_ids) {
-      throw "Cannot save/destroy an object without a _name."
-    } else {
-      var get_uuids = cassandra.create_request("get_uuids")
-      get_uuids.addListener("success", function(result) {
-        o._name = result[0];
-        now_have_id();
-      })
-      get_uuids.addListener("error", function(mess) {
-        var error_mess = "Could not get UUID for id when attempting to save/destroy object under " +
-                          path_s(keyspace, column_family, key) + ': ' + mess;
-        logger.error(error_mess);
-        if (event_listeners.error) event_listeners.error(error_mess)      
-      });
-      get_uuids.send();
-    }     
-  }
-  
-  function now_have_id() {
-    var mut_map = {};
-    mut_map[key] = {};
-    var mutations = mut_map[key][column_family] = mutations_func();
-    if (!mutations || mutations.length < 1) throw "Nothing to save/destroy!";
-    var mutate_request = cassandra.create_request("batch_mutate",
-      {keyspace: keyspace, mutation_map: mut_map, 
-       consistency_level: ConsistencyLevel.ONE})
-    mutate_request.addListener("success", function(result) {
-      if (timestamp_func) timestamp_func(result);
-      if (event_listeners.success) event_listeners.success(o.id);
-    })
-    mutate_request.addListener("error", function(mess) {
-      var error_mess = "Error saving/destroying object under '" + 
-                        path_s(keyspace, column_family, key) + ": " + mess;
-      logger.error(error_mess);
-      if (event_listeners.error) event_listeners.error(error_mess);
-    })
-    mutate_request.send()
-  }
+  var name = o._name;
+  var last_saved = o._last_saved;
+  delete o._name;
+  delete o._last_saved;
+  var json = JSON.stringify(o);
+  o._name = name;
+  o._last_saved = last_saved;
+  return {name: o._name, value: json, timestamp: "auto"};  
 }
 
 function destroy_row_object(keyspace, column_family, o, event_listeners) {
+  insert_object_callback(keyspace, column_family, event_listeners, 
+                         "after_destroy_row", o);
   save_object(keyspace, column_family, o.key, o, false, event_listeners, 
     function() {
       return mutations_for_destroy_row_object(keyspace, column_family, o);
@@ -469,6 +420,8 @@ function mutations_for_destroy_row_object(keyspace, column_family, o) {
 }
 
 function destroy_super_column_object(keyspace, column_family, key, o, event_listeners) {
+  insert_object_callback(keyspace, column_family, event_listeners, 
+                         "after_destroy_super_column", o);
   save_object(keyspace, column_family, key, o, false, event_listeners, 
     function() {
       return mutations_for_destroy_super_column_object(keyspace, column_family, o);
@@ -527,6 +480,8 @@ function mutations_for_destroy_super_column_object(keyspace, column_family, o) {
 }
 
 function destroy_column_object(keyspace, column_family, key, super_column_name, o, event_listeners) {
+  insert_object_callback(keyspace, column_family, event_listeners, 
+                         "after_destroy_column", o);
   save_object(keyspace, column_family, key, o, false, event_listeners, 
     function() { return [mutation_for_destroy_column_object(super_column_name, o)]; })  
 }
@@ -536,6 +491,75 @@ function mutation_for_destroy_column_object(super_column_name, o) {
   var mut = {timestamp: o.timestamp, predicate: {column_names: [o._name]}}
   if (super_column_name) mut.super_column = super_column_name;
   return mut;
+}
+
+function save_object(keyspace, column_family, key, o, auto_generate_ids, event_listeners, mutations_func, timestamp_func, update_last_saved) {
+  // logger.debug("save_object - keyspace: " + keyspace + ",column_family:" + column_family + 
+  //          ",key:" + key + ",o:" + sys.inspect(o));
+           
+  var cassandra = keyspaces[keyspace].cassandra;
+
+  if ( key ) {
+    now_have_key();
+  } else if (!auto_generate_ids) {
+    throw "Cannot save/destroy an object without a key."
+  } else {
+    var get_uuids = cassandra.create_request("get_uuids")
+    get_uuids.addListener("success", function(result) {
+      o.key = key = result[0];
+      now_have_key();
+    })
+    get_uuids.addListener("error", function(mess) {
+      var error_mess = "Could not get UUID for key when attempting to save object under " + 
+        path_s(keyspace, column_family, key) + ':'  + mess;
+      logger.error(error_mess);
+      if (event_listeners.error) event_listeners.error(error_mess)      
+    });
+    get_uuids.send();
+  } 
+  
+  function now_have_key() {
+    if ( o.id ) {
+      now_have_id();
+    } else if (!auto_generate_ids) {
+      throw "Cannot save/destroy an object without a _name."
+    } else {
+      var get_uuids = cassandra.create_request("get_uuids")
+      get_uuids.addListener("success", function(result) {
+        o._name = result[0];
+        now_have_id();
+      })
+      get_uuids.addListener("error", function(mess) {
+        var error_mess = "Could not get UUID for id when attempting to save/destroy object under " +
+                          path_s(keyspace, column_family, key) + ': ' + mess;
+        logger.error(error_mess);
+        if (event_listeners.error) event_listeners.error(error_mess)      
+      });
+      get_uuids.send();
+    }     
+  }
+  
+  function now_have_id() {
+    var mut_map = {};
+    mut_map[key] = {};
+    var mutations = mut_map[key][column_family] = mutations_func();
+    if (!mutations || mutations.length < 1) throw "Nothing to save/destroy!";
+    var mutate_request = cassandra.create_request("batch_mutate",
+      {keyspace: keyspace, mutation_map: mut_map, 
+       consistency_level: ConsistencyLevel.ONE})
+    mutate_request.addListener("success", function(result) {
+      if (timestamp_func) timestamp_func(result);
+      if (update_last_saved) o.update_last_saved();
+      if (event_listeners.success) event_listeners.success(o.id);
+    })
+    mutate_request.addListener("error", function(mess) {
+      var error_mess = "Error saving/destroying object under '" + 
+                        path_s(keyspace, column_family, key) + ": " + mess;
+      logger.error(error_mess);
+      if (event_listeners.error) event_listeners.error(error_mess);
+    })
+    mutate_request.send()
+  }
 }
 
 function merge_mutations_by_timestamp(mutations) {
@@ -660,14 +684,61 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
 }
 
 function activate_object(keyspace, column_family, key, super_column_name, column_name, o) {
-  
   // logger.info("--- activate_object path: " + path_s(keyspace, column_family, key, super_column_name, column_name))  
+  
+  function this_key() { return this.key; }
+  function this_name() { return this._name; }
+  o._last_saved = null;
+  o.update_last_saved = function() {
+
+    function copy(thing) {
+      var a_copy;
+      if (typeof thing == "object") {
+        a_copy = {}
+        for (var k in thing) {
+          a_copy[k] = copy(thing[k]);
+        }
+      } else {
+        a_copy = thing;
+      }
+      return a_copy;
+    }
+    
+    this._last_saved = {};
+    Object.defineProperty(this._last_saved, "id", { 
+      get: (super_column_name || column_name ? this_name : this_key) 
+    });
+    for (var k in this) {
+      if (k == "_last_saved" || k == "update_last_saved") continue;
+      var val = this[k];
+      if (!val) {
+        this._last_saved[k] = val;
+      } else if ( Array.isArray(val) ) {
+        this._last_saved[k] = [];
+        var that = this;
+        val.forEach(function(item) {
+          if (item._last_saved !== undefined) {
+            item.update_last_saved();
+            that._last_saved[k].push(item._last_saved);
+          } else {
+            that._last_saved[k].push(copy(item));
+          }
+        });
+      } else if (val._last_saved != undefined) { 
+        val.update_last_saved();
+        this._last_saved[k] = val._last_saved;
+      } else {
+        this._last_saved[k] = copy(val);
+      }
+    }
+    return this;
+  }    
   var cf = get_column_family(keyspace, column_family);
   if (column_name) {
     if (typeof o == 'object') {
       o._name = column_name;
-      Object.defineProperty(o, "id", { get: function() { return this._name;} });
-      Object.defineProperty(o, "key", { get: function() { return key;} });
+      Object.defineProperty(o, "id", { get: this_name });
+      Object.defineProperty(o, "key", { get: this_key });
       o.get_super_column_name = function() { return super_column_name};
       o.save = function(event_listeners, delete_missing_columns) {
         save_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
@@ -678,8 +749,8 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     }
   } else if (super_column_name) {
     o._name = super_column_name;
-    Object.defineProperty(o, "id", { get: function() { return this._name;} });
-    Object.defineProperty(o, "key", { get: function() { return key;} });
+    Object.defineProperty(o, "id", { get: this_name });
+    Object.defineProperty(o, "key", { get: this_key });
     if (!o.columns && !cf.subcolumn_names) o.columns = [];
     if (!o.timestamps && cf.subcolumn_names) o.timestamps = {};
     o.save = function(event_listeners, delete_missing_columns) {
@@ -688,12 +759,12 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     }  
     o.destroy = function(event_listeners) {
       destroy_super_column_object(keyspace, column_family, key, this, event_listeners);
-    }    
+    }
   } else {
     o.key = key;
     if (!o.columns && !cf.column_names) o.columns = [];      
     if (!o.timestamps && cf.column_names) o.timestamps = {};
-    Object.defineProperty(o, "id", { get: function() { return this.key;} });
+    Object.defineProperty(o, "id", { get: this_key });
     o.save = function(event_listeners) {
       save_row_object(keyspace, column_family, this, event_listeners);
     }
@@ -706,6 +777,25 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     }    
   }
   return o;
+}
+
+function insert_object_callback(keyspace, column_family, event_listeners, callback_name, o) {
+  var cf = get_column_family(keyspace, column_family)
+  if (!cf.callbacks[callback_name]) return;
+  var old_success = event_listeners.success;
+  var previous_version = o._last_saved;
+  event_listeners.success = function(result) {
+    cf.callbacks[callback_name].call(o, {
+      success: function() {
+        old_success(result);
+      }, 
+      error: function(mess) {
+        var error_mess = "Error in " + callback_name + " callback " + mess
+        event_listeners.error(error_mess);
+      }, 
+    }, previous_version);
+  }
+  
 }
 
 function path_s(keyspace, column_family, key, super_column_name, column_name) {
@@ -738,7 +828,8 @@ exports.initialize_keyspaces = function(ks_configs) {
         column_names: cf_config.column_names,
         column_value_type: cf_config.column_value_type,
         subcolumn_names: cf_config.subcolumn_names,
-        subcolumn_value_type: cf_config.subcolumn_value_type
+        subcolumn_value_type: cf_config.subcolumn_value_type,
+        callbacks: cf_config.callbacks || {}
       };
       cf.new_object = function() {
         // logger.info("new_object - arguments: " + sys.inspect(arguments));
@@ -815,7 +906,6 @@ exports.initialize_keyspaces = function(ks_configs) {
                   }
                 })
               } else if (this.column_value_type == "json") {
-                sys.puts("hi")
                 init_cols.forEach(function(col) {
                   mem_obj.columns.push(that.new_object(key, col._name, col));
                 })
