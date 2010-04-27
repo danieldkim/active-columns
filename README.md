@@ -590,8 +590,111 @@ Cassandra use <code>{column family}.remove()</code>
 Since Cassandra data models tend to be highly denormalized, with cached copies
 of data stored in various places, and since "indices" are decoupled from the
 data they are indexing and must be updated manually when the source data
-changes, <code>after\_save</code> and <code>after\_destroy</code> callbacks are
-a must.
+changes, it would be handy to set up some code to automatically execute whenever
+you save or destroy an object. Active Columns allows you to configure
+<code>after\_save\_row</code> and <code>after\_destroy\_row</code> callbacks to
+be run whenever these events occur on a row object.
+
+Callbacks are configured on the column family, in the <code>callbacks</code> property
+of the column family.  Thus, they can be configured like so:
+
+    ActiveColumns.initialize_keyspaces([
+      { 
+        name: "ActiveColumnsTest", 
+        cassandra_port: 10000,
+        cassandra_host: "127.0.0.1", 
+        column_families: {
+          Users1: { 
+            column_names: ["city", "state", "last_login", "sex"],
+            callbacks: {
+              after_save_row: function(event_listeners, previous_version) {
+                sys.puts("after_save_row for Users1 called!");
+              }
+            }
+          }
+        }
+      }
+    ])
+
+or like so:
+
+    var Users1 = get_column_family("ActiveColumnsTest", "Users1");
+    Users1.callbacks.after_save_row = function(event_listeners, previous_version) {
+      sys.puts("after_save_row for Users1 called!");
+    };
+    
+#### after\_save\_row (event\_listeners, previous\_version)
+
+This method is called after any row object in the column family is saved.
+*event\_listeners* is a hash containing functions to handle "success" and
+"error" conditions within the callback. *previous\_version* is a copy of this
+object corresponding to the previous saved version, before the the current save.
+*previous\_version* corresponds to the version of this object retrieved by
+<code>find()</code> if you have not saved it since retrieving it.
+*previous\_version* will be <code>null</code> if this is a new object that has
+not been saved before now. The saved/current version of the object can be
+accessed through the <code>this</code> variable.
+
+    Users1.callbacks.after_save_row = function(event_listeners, previous_version) {
+      // remove from StateUsers2 column family if new state is different
+      if (previous_version.state != this.state) {
+        StateUsers2.find(previous_version.state, previous_version._name, {
+          success: function(result) {
+            result.destroy({
+              error: function(mess) {
+                logger.error("Error destroying StateUsers2 object " + 
+                                previous_version.state + "/" + previous_version._name + 
+                                ":" + mess)
+              }
+            })
+          },
+          error: function(mess) {
+            logger.error("Error finding StateUsers2 object " + 
+                            previous_version.state + "/" + previous_version._name + 
+                            ": " + mess) 
+          }
+        })
+      }
+      // update StateUsers2 with current object (this)
+      var state_user = StateUsers2.new_object(this.state, {
+        _name: this._name, city: this.city, sex: this.sex
+      });
+      state_user.save({
+        error: function(mess) {
+          logger.error("Error creating StateUsers2 object " + 
+                          this.state + "/" + this._name + ": " + mess)           
+        }
+      });
+      event_listeners.success();
+    }
+    
+#### after\_destroy\_row (event\_listeners)
+
+This method is called after any row object in the column family is saved.
+*event\_listeners* is a hash containing functions to handle "success" and
+"error" conditions within the callback. The destroyed object can be accessed
+through the <code>this</code> variable.
+
+    // remove corresponding StateUsers2 object after we destroy a user object
+    Users1.callbacks.after_destroy_row = function(event_listeners, previous_version) {
+      StateUsers2.find(this.state, this._name, {
+        success: function(result) {
+          result.destroy({
+            error: function(mess) {
+              logger.error("Error destroying StateUsers2 object " + 
+                              previous_version.state + "/" + previous_version._name + 
+                              ":" + mess)
+            }
+          })
+        },
+        error: function(mess) {
+          logger.error("Error finding StateUsers2 object " + 
+                          previous_version.state + "/" + previous_version._name + 
+                          ": " + mess) 
+        }
+      })
+      event_listeners.success();
+    }
 
 ## Future Work
 
