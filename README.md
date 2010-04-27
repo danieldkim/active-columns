@@ -58,7 +58,7 @@ column names, e.g. a "Users" column family with "first\_name", "last_name",
 etc., you can configure these column names in Active Columns to make it collapse
 User objects, allowing you to access the first name of a user object like so:
 
-    var first_name = my_user.first_name = "Joe";
+    var first_name = my_user.first_name;
 
 instead of like so (this example uses Underscore.js to detect the "first\_name"
 column):
@@ -585,6 +585,14 @@ Destroys {object}. Note: this only removes the columns represented in this
 {object} from Cassandra. To completely remove *all* columns of a row object from
 Cassandra use <code>{column family}.remove()</code>
 
+### Callbacks
+
+Since Cassandra data models tend to be highly denormalized, with cached copies
+of data stored in various places, and since "indices" are decoupled from the
+data they are indexing and must be updated manually when the source data
+changes, <code>after\_save</code> and <code>after\_destroy</code> callbacks are
+a must.
+
 ## Future Work
 
 ### Consistency levels
@@ -592,14 +600,6 @@ Cassandra use <code>{column family}.remove()</code>
 Currently, consistency levels for all cassandra requests are hard-coded as ONE.
 Should be able to configure the consistency level for each operation for each
 kind of object in a column family.
-
-### Callbacks
-
-Since Cassandra data models tend to be highly denormalized, with cached copies
-of data stored in various places, and since "indices" are decoupled from the
-data they are indexing and must be updated manually when the source data
-changes, <code>after\_save</code> and <code>after\_destroy</code> callbacks are
-a must and will be implemented soon.
 
 ### Associations
 
