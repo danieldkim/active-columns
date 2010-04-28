@@ -151,11 +151,15 @@ function test_Users1(test_done) {
   }
   
   function successful_find() {
+    var cb_token = Math.random();
+    add_token_callbacks(Users1, ["after_find_row", "after_initialize_row"], cb_token);
     Users1.find("alice", {
       success: clean_up_on_exception_for(function(result) {
         alice = result;
         assert_alice(alice, "New York");
         assert_alice(alice._last_saved, "New York");
+        assert.equal(cb_token, alice.after_find_token);
+        assert.equal(cb_token, alice.after_initialize_token);
         logger.info("Alice found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -401,10 +405,14 @@ function test_Users2(test_done) {
   }
   
   function successful_find() {
+    var cb_token = Math.random();
+    add_token_callbacks(Users2, ["after_find_row", "after_initialize_row"], cb_token);
     Users2.find("alice", predicate, {
       success: clean_up_on_exception_for(function(result) {
         alice = result;
         assert_alice(alice, "New York");
+        assert.equal(cb_token, alice.after_find_token);
+        assert.equal(cb_token, alice.after_initialize_token);
         logger.info("Alice found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -649,10 +657,14 @@ function _test_StateUsersX_user_level(test_done, column_family) {
   }
   
   function successful_find() {
+    var cb_token = Math.random();
+    add_token_callbacks(StateUsersX, ["after_find_" + callback_level, "after_initialize_" + callback_level], cb_token);
     StateUsersX.find("NY", "alice", {
       success: clean_up_on_exception_for(function(result) {
         ny_alice = result;
         assert_ny_alice(ny_alice, "New York");
+        assert.equal(cb_token, ny_alice.after_find_token);
+        assert.equal(cb_token, ny_alice.after_initialize_token);
         logger.info("ny_alice found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -833,10 +845,14 @@ function _test_StateUsersX_state_level(test_done, column_family) {
   }
   
   function successful_find() {
+    var cb_token = Math.random();
+    add_token_callbacks(StateUsersX, ["after_find_row", "after_initialize_row"], cb_token);
     StateUsersX.find("NY", column_predicate, {
       success: clean_up_on_exception_for(function(result) {
         ny = result;
         assert.equal(2, ny.columns.length);
+        assert.equal(cb_token, ny.after_find_token);
+        assert.equal(cb_token, ny.after_initialize_token);
         ny_alice = ny.columns[0];
         ny_bob = ny.columns[1];
         assert_ny_alice(ny_alice, "New York");
@@ -1034,10 +1050,14 @@ function test_StateLastLoginUsers_user_level(test_done) {
   }
   
   function successful_find() {
+    var cb_token = Math.random();
+    add_token_callbacks(StateLastLoginUsers, ["after_find_column", "after_initialize_column"], cb_token);
     StateLastLoginUsers.find("NY", 1271184168, "alice", {
       success: clean_up_on_exception_for(function(result) {
         ny_1271184168_alice = result;
         assert_ny_1271184168_alice(ny_1271184168_alice, "New York");
+        assert.equal(cb_token, ny_1271184168_alice.after_find_token);
+        assert.equal(cb_token, ny_1271184168_alice.after_initialize_token);
         logger.info("ny_1271184168_alice found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -1218,10 +1238,14 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
   }
   
   function successful_find() {
+    var cb_token = Math.random();
+    add_token_callbacks(StateLastLoginUsers, ["after_find_super_column", "after_initialize_super_column"], cb_token);
     StateLastLoginUsers.find("NY", 1271184168, column_predicate, {
       success: clean_up_on_exception_for(function(result) {
         ny_1271184168 = result;
         assert_ny_1271184168(ny_1271184168, 0, "New York", 1, "Jackson Heights");
+        assert.equal(cb_token, ny_1271184168.after_find_token);
+        assert.equal(cb_token, ny_1271184168.after_initialize_token);
         logger.info("ny_1271184168 found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -1418,10 +1442,14 @@ function test_StateLastLoginUsers_state_level(test_done) {
   }
   
   function successful_find() {
+    var cb_token = Math.random();
+    add_token_callbacks(StateLastLoginUsers, ["after_find_row", "after_initialize_row"], cb_token);
     StateLastLoginUsers.find("NY", column_predicate, {
       success: clean_up_on_exception_for(function(result) {
         ny = result;
         assert.equal(2, ny.columns.length);
+        assert.equal(cb_token, ny.after_find_token);
+        assert.equal(cb_token, ny.after_initialize_token);
         ny_1271184168 = ny.columns[0];
         ny_1271184169 = ny.columns[1];
         assert_ny_1271184168(ny_1271184168, 0, "New York", 1, "Jackson Heights");

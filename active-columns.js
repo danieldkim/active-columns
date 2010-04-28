@@ -90,13 +90,13 @@ function find_objects() {
   function insert_callback(o) {
     if (column_name) {
       insert_after_callbacks(keyspace, column_family, event_listeners, 
-                             "after_find_column", o);    
+                             ["after_find_column", "after_initialize_column"], o);    
     } else if (super_column_name) {
       insert_after_callbacks(keyspace, column_family, event_listeners, 
-                             "after_find_super_column", o);    
+                             ["after_find_super_column", "after_initialize_super_column"], o);    
     } else {
       insert_after_callbacks(keyspace, column_family, event_listeners, 
-                             "after_find_row", o);    
+                             ["after_find_row", "after_initialize_row"], o);    
 
     }    
   }
@@ -817,15 +817,20 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   return o;
 }
 
-function insert_after_callbacks(keyspace, column_family, event_listeners, callback_name, o) {
+function insert_after_callbacks(keyspace, column_family, event_listeners, callback_names, o) {
+  if (!Array.isArray(callback_names)) callback_names = [callback_names];
   var cf = get_column_family(keyspace, column_family)
-  var callbacks = cf.callbacks[callback_name]
-  if (!callbacks || callbacks.length < 1) 
-       return;
+  var callbacks = []
+  callback_names.forEach(function(cb_name) {
+    var cb_name_callbacks = cf.callbacks[cb_name];
+    if (cb_name_callbacks && cb_name_callbacks.length > 0) 
+      callbacks = callbacks.concat(cb_name_callbacks);
+  })
+  if (callbacks.length < 1) return;
   var old_success = event_listeners.success;
   var previous_version = o._last_saved;
   event_listeners.success = function(result) {
-    call_callbacks(callbacks, o, old_success, previous_version);    
+    call_callbacks(callbacks, o, function() {old_success(result);}, previous_version);    
   }  
 }
 
