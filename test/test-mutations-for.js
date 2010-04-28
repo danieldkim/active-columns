@@ -160,8 +160,8 @@ var tests = {
     // ny.add_column("alice", {state: "NY", city: "New York"});
     // ny.add_column("bob", {state: "NY", city: "Jackson Heights"});    
     var expected_mutations = [ 
-      { name: 'alice', value: '{"_name":"alice","state":"NY","city":"New York"}', timestamp: 'auto' }, 
-      { name: 'bob', value: '{"_name":"bob","state":"NY","city":"Jackson Heights"}', timestamp: 'auto'}
+      { name: 'alice', value: '{"state":"NY","city":"New York"}', timestamp: 'auto' }, 
+      { name: 'bob', value: '{"state":"NY","city":"Jackson Heights"}', timestamp: 'auto'}
     ]
     var mutations = ActiveColumns.low_level.mutations_for_save_row_object(
       "ActiveColumnsTest", "StateUsers2", ny)    
@@ -208,13 +208,13 @@ var tests = {
       {
         "name":2445066,
         "columns":[
-          {"name":"alice","value":"{\"_name\":\"alice\",\"city\":\"New York\"}","timestamp":"auto"},
-          {"name":"bob","value":"{\"_name\":\"bob\",\"city\":\"Jackson Heights\"}","timestamp":"auto"}
+          {"name":"alice","value":"{\"city\":\"New York\"}","timestamp":"auto"},
+          {"name":"bob","value":"{\"city\":\"Jackson Heights\"}","timestamp":"auto"}
         ]
       },
       {
         "name":2445067,
-        "columns":[{"name":"chuck","value":"{\"_name\":\"chuck\",\"city\":\"Elmhurst\"}","timestamp":"auto"}]
+        "columns":[{"name":"chuck","value":"{\"city\":\"Elmhurst\"}","timestamp":"auto"}]
       }
     ]
     // sys.puts("mutations: " + sys.inspect(mutations, false, null));
