@@ -123,20 +123,25 @@ function test_Users1(test_done) {
       first_save();
     }
   }
+
+  var cb_names = ["before_save_row", "after_save_row"];
   
   function first_save() {
-    var cb_token = Math.random();;
-    Users1.callbacks.after_save_row = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert.equal(null, previous_version);
-        assert_alice(this, "New York");
-        event_listeners.success();
-      });
+    var cb_token = Math.random();
+    add_token_callbacks(Users1, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      Users1.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert.equal(null, previous_version);
+          assert.strictEqual(alice, this);
+          event_listeners.success();
+        }));      
+    });
     alice.save({
      success: function(result) {
        logger.info("Alice saved successfully.");
-       assert.equal(cb_token, alice.callback_token);
+       assert.equal(cb_token, alice.before_save_token);
+       assert.equal(cb_token, alice.after_save_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -177,17 +182,21 @@ function test_Users1(test_done) {
     alice.city = "Los Angeles";
     assert_alice(alice, "Los Angeles");
     assert_alice(alice._last_saved, "New York");
+    Users1.callbacks = {}
     cb_token = Math.random();;
-    Users1.callbacks.after_save_row = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert_alice(previous_version, "New York");
-        assert_alice(this, "Los Angeles");
-        event_listeners.success();
-      });
+    add_token_callbacks(Users1, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      Users1.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert_alice(previous_version, "New York");
+          assert.strictEqual(alice, this);
+          event_listeners.success();
+        }));      
+    });
     alice.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, alice.callback_token);
+        assert.equal(cb_token, alice.before_save_token);
+        assert.equal(cb_token, alice.after_save_token);
         Users1.find("alice", {
           success: clean_up_on_exception_for(function(result) {
             logger.info("Alice saved successfully after find.");
@@ -257,16 +266,16 @@ function test_Users1(test_done) {
   function successful_destroy() {
     try {
       var cb_token = Math.random();;
-      Users1.callbacks.after_destroy_row = clean_up_on_exception_for(
+      Users1.add_callback("after_destroy_row", clean_up_on_exception_for(
         function(event_listeners, previous_version) {
-          this.callback_token = cb_token;
-          assert_alice(this, "Los Angeles");
+          this.after_destroy_token = cb_token;
+          assert.strictEqual(alice, this);
           event_listeners.success();
-        });
+        }));
       alice.destroy({
         success: function() {
           Users1.callbacks = {}
-          assert.equal(cb_token, alice.callback_token);
+          assert.equal(cb_token, alice.after_destroy_token);
           logger.info("Successfully destroyed alice.")
           clean_up_on_exception_for(function(){unsuccessful_find(true)})();
         },
@@ -365,19 +374,24 @@ function test_Users2(test_done) {
     }
   }
   
+  var cb_names = ["before_save_row", "after_save_row"];
+  
   function first_save() {
     var cb_token = Math.random();
-    Users2.callbacks.after_save_row = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert_alice(this, "New York");
-        assert.equal(null, previous_version);
-        event_listeners.success();
-      });
+    add_token_callbacks(Users2, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      Users2.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert.equal(null, previous_version);
+          assert.strictEqual(alice, this);
+          event_listeners.success();
+        }));      
+    });
     alice.save({
      success: function(result) {
        logger.info("Alice saved successfully.");
-       assert.equal(cb_token, alice.callback_token);
+       assert.equal(cb_token, alice.before_save_token);
+       assert.equal(cb_token, alice.after_save_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -419,17 +433,21 @@ function test_Users2(test_done) {
 
   function save_after_find() {
     _.detect(alice.columns, function(col) {return col.name == "city"}).value = "Los Angeles";
+    Users2.callbacks = {}
     var cb_token = Math.random();
-    Users2.callbacks.after_save_row = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert_alice(previous_version, "New York");
-        assert_alice(this, "Los Angeles");
-        event_listeners.success();
-      });
+    add_token_callbacks(Users2, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      Users2.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert_alice(previous_version, "New York");
+          assert.strictEqual(alice, this);
+          event_listeners.success();
+        }));      
+    });
     alice.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, alice.callback_token);
+        assert.equal(cb_token, alice.before_save_token);
+        assert.equal(cb_token, alice.after_save_token);
         logger.info("Alice saved successfully after find.");
         Users2.find("alice", predicate, {
           success: clean_up_on_exception_for(function(result) {
@@ -499,16 +517,16 @@ function test_Users2(test_done) {
   function successful_destroy() {
     try {
       var cb_token = Math.random();;
-      Users2.callbacks.after_destroy_row = clean_up_on_exception_for(
+      Users2.add_callback("after_destroy_row", clean_up_on_exception_for(
         function(event_listeners, previous_version) {
-          this.callback_token = cb_token;
-          assert_alice(this, "Los Angeles");
+          this.after_destroy_token = cb_token;
+          assert.strictEqual(alice, this);
           event_listeners.success();
-        });
+        }));
       alice.destroy({
         success: function() {
           logger.info("Successfully destroyed alice.")
-          assert.equal(cb_token, alice.callback_token);
+          assert.equal(cb_token, alice.after_destroy_token);
           Users2.callbacks = {}
           clean_up_on_exception_for(function() {unsuccessful_find(true)})();
         },
@@ -604,18 +622,24 @@ function _test_StateUsersX_user_level(test_done, column_family) {
     }
   }
   
+  var cb_names = ["before_save_" + callback_level, "after_save_" + callback_level];
+  
   function first_save() {
     var cb_token = Math.random();
-    StateUsersX.callbacks["after_save_" + callback_level] = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert.equal(null, previous_version);
-        event_listeners.success();
-      });
+    add_token_callbacks(StateUsersX, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateUsersX.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert.equal(null, previous_version);
+          assert_ny_alice(ny_alice, "New York");
+          event_listeners.success();
+        }));      
+    });
     ny_alice.save({
      success: function(result) {
        logger.info("ny_alice saved successfully.");
-       assert.equal(cb_token, ny_alice.callback_token);
+       assert.equal(cb_token, ny_alice.before_save_token);
+       assert.equal(cb_token, ny_alice.after_save_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -652,16 +676,21 @@ function _test_StateUsersX_user_level(test_done, column_family) {
   function save_after_find() {
     var prev_city = ny_alice.city;
     var cb_token = Math.random();
-    StateUsersX.callbacks["after_save_" + callback_level] = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert_ny_alice(previous_version, prev_city);
-        event_listeners.success();
-      });
+    StateUsersX.callbacks = {};
+    add_token_callbacks(StateUsersX, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateUsersX.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert_ny_alice(previous_version, prev_city);
+          assert.strictEqual(ny_alice, this);
+          event_listeners.success();
+        }));      
+    });
     ny_alice.city = alice_new_city
     ny_alice.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny_alice.callback_token);
+        assert.equal(cb_token, ny_alice.before_save_token);
+        assert.equal(cb_token, ny_alice.after_save_token);
         StateUsersX.find("NY", "alice", {
           success: clean_up_on_exception_for(function(result) {
             ny_alice = result;
@@ -683,16 +712,16 @@ function _test_StateUsersX_user_level(test_done, column_family) {
   function successful_destroy() {
     try {
       var cb_token = Math.random();;
-      StateUsersX.callbacks["after_destroy_" + callback_level] = clean_up_on_exception_for(
+      StateUsersX.add_callback("after_destroy_" + callback_level, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
-          this.callback_token = cb_token;
-          assert_ny_alice(this, alice_new_city);
+          this.after_destroy_token = cb_token;
+          assert.strictEqual(ny_alice, this);
           event_listeners.success();
-        });
+        }));
       ny_alice.destroy({
         success: function() {
           StateUsersX.callbacks = {}
-          assert.equal(cb_token, ny_alice.callback_token);
+          assert.equal(cb_token, ny_alice.after_destroy_token);
           logger.info("Successfully destroyed ny_alice.")
           clean_up_on_exception_for(function(){unsuccessful_find(true)})();
         },
@@ -777,19 +806,24 @@ function _test_StateUsersX_state_level(test_done, column_family) {
     }
   }
   
+  var cb_names = ["before_save_row", "after_save_row"];
+  
   function first_save() {
     var cb_token = Math.random();
-    StateUsersX.callbacks.after_save_row = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert.equal(null, previous_version);
-        assert_ny_alice(this.columns[0], "New York");
-        event_listeners.success();
-      });
+    add_token_callbacks(StateUsersX, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateUsersX.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert.equal(null, previous_version);
+          assert.strictEqual(ny, this);
+          event_listeners.success();
+        }));      
+    });
     ny.save({
      success: function(result) {
        logger.info("ny saved successfully.");
-       assert.equal(cb_token, ny.callback_token);
+       assert.equal(cb_token, ny.before_save_token);
+       assert.equal(cb_token, ny.after_save_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -839,16 +873,20 @@ function _test_StateUsersX_state_level(test_done, column_family) {
     ny.columns[0].city = alice_new_city
     ny.columns[1].city = bob_new_city
     var cb_token = Math.random();
-    StateUsersX.callbacks.after_save_row = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert_ny_alice(previous_version.columns[0], prev_city);
-        assert_ny_alice(this.columns[0], alice_new_city);
-        event_listeners.success();
-      });
+    StateUsersX.callbacks = {}
+    add_token_callbacks(StateUsersX, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateUsersX.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert_ny_alice(previous_version.columns[0], prev_city);
+          assert.strictEqual(ny, this);
+          event_listeners.success();
+        }));      
+    });
     ny.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny.callback_token);
+        assert.equal(cb_token, ny.before_save_token);
+        assert.equal(cb_token, ny.after_save_token);
         StateUsersX.find("NY", column_predicate, {
           success: clean_up_on_exception_for(function(result) {
             ny = result;
@@ -873,18 +911,17 @@ function _test_StateUsersX_state_level(test_done, column_family) {
   function successful_destroy() {
     try {
       var cb_token = Math.random();;
-      StateUsersX.callbacks.after_destroy_row = clean_up_on_exception_for(
+      StateUsersX.add_callback("after_destroy_row", clean_up_on_exception_for(
         function(event_listeners, previous_version) {
-          this.callback_token = cb_token;
-          assert_ny_alice(this.columns[0], alice_new_city);
-          assert_ny_bob(this.columns[1], bob_new_city);
+          this.after_destroy_token = cb_token;
+          assert.strictEqual(ny, this);
           event_listeners.success();
-        });
+        }));
       ny.destroy({
         success: function() {
           logger.info("Successfully destroyed ny.")
           StateUsersX.callbacks = {}
-          assert.equal(cb_token, ny.callback_token);
+          assert.equal(cb_token, ny.after_destroy_token);
           clean_up_on_exception_for(function(){unsuccessful_find(true)})();
         },
         error: function(mess) {          
@@ -970,19 +1007,24 @@ function test_StateLastLoginUsers_user_level(test_done) {
     }
   }
   
+  var cb_names = ["before_save_column", "after_save_column"];
+  
   function first_save() {
     var cb_token = Math.random();
-    StateLastLoginUsers.callbacks.after_save_column = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert.equal(null, previous_version);
-        assert_ny_1271184168_alice(this, "New York");
-        event_listeners.success();
-      });
+    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert.equal(null, previous_version);
+          assert_ny_1271184168_alice(this, "New York");
+          event_listeners.success();
+        }));      
+    });
     ny_1271184168_alice.save({
      success: function(result) {
        logger.info("ny_1271184168_alice saved successfully.");
-       assert.equal(cb_token, ny_1271184168_alice.callback_token);
+       assert.equal(cb_token, ny_1271184168_alice.before_save_token);
+       assert.equal(cb_token, ny_1271184168_alice.after_save_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -1019,17 +1061,21 @@ function test_StateLastLoginUsers_user_level(test_done) {
   function save_after_find() {
     var prev_city = ny_1271184168_alice.city; 
     var cb_token = Math.random();
-    StateLastLoginUsers.callbacks.after_save_column = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert_ny_1271184168_alice(previous_version, prev_city);
-        assert_ny_1271184168_alice(this, alice_new_city);
-        event_listeners.success();
-      });
+    StateLastLoginUsers.callbacks = {}
+    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert_ny_1271184168_alice(previous_version, prev_city);
+          assert_ny_1271184168_alice(this, alice_new_city);
+          event_listeners.success();
+        }));      
+    });
     ny_1271184168_alice.city = alice_new_city
     ny_1271184168_alice.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny_1271184168_alice.callback_token);
+        assert.equal(cb_token, ny_1271184168_alice.before_save_token);
+        assert.equal(cb_token, ny_1271184168_alice.after_save_token);
         StateLastLoginUsers.find("NY", 1271184168, "alice", {
           success: clean_up_on_exception_for(function(result) {
             ny_1271184168_alice = result;
@@ -1051,17 +1097,17 @@ function test_StateLastLoginUsers_user_level(test_done) {
   function successful_destroy() {
     try {
       var cb_token = Math.random();;
-      StateLastLoginUsers.callbacks.after_destroy_column = clean_up_on_exception_for(
+      StateLastLoginUsers.add_callback("after_destroy_column", clean_up_on_exception_for(
         function(event_listeners, previous_version) {
-          this.callback_token = cb_token;
-          assert_ny_1271184168_alice(this, alice_new_city);
+          this.after_destroy_token = cb_token;
+          assert.strictEqual(ny_1271184168_alice, this);
           event_listeners.success();
-        });
+        }));
       ny_1271184168_alice.destroy({
         success: function() {
           logger.info("Successfully destroyed ny_1271184168_alice.")
           StateLastLoginUsers.callbacks = {}
-          assert.equal(cb_token, ny_1271184168_alice.callback_token);
+          assert.equal(cb_token, ny_1271184168_alice.after_destroy_token);
           clean_up_on_exception_for(function(){unsuccessful_find(true)})();
         },
         error: function(mess) {          
@@ -1145,18 +1191,23 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
     }
   }
   
+  var cb_names = ["before_save_super_column", "after_save_super_column"];
+  
   function first_save() {
     var cb_token = Math.random();
-    StateLastLoginUsers.callbacks.after_save_super_column = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert.equal(null, previous_version);
-        assert_ny_1271184168(this, 1, "New York", 0, "Jackson Heights");
-        event_listeners.success();
-      });
+    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert.equal(null, previous_version);
+          assert_ny_1271184168(this, 1, "New York", 0, "Jackson Heights");
+          event_listeners.success();
+        }));      
+    });
     ny_1271184168.save({
      success: function(result) {
-       assert.equal(cb_token, ny_1271184168.callback_token);
+       assert.equal(cb_token, ny_1271184168.before_save_token);
+       assert.equal(cb_token, ny_1271184168.after_save_token);
        logger.info("ny_1271184168 saved successfully.");
        clean_up_on_exception_for(successful_find)();
      },
@@ -1205,18 +1256,22 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
     var alice_prev_city = ny_1271184168.columns[0].city;
     var bob_prev_city = ny_1271184168.columns[1].city;
     var cb_token = Math.random();
-    StateLastLoginUsers.callbacks.after_save_super_column = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert_ny_1271184168(previous_version, 0, alice_prev_city, 1, bob_prev_city);
-        assert_ny_1271184168(this, 0, alice_new_city, 1, bob_new_city);
-        event_listeners.success();
-      });
+    StateLastLoginUsers.callbacks = {}
+    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert_ny_1271184168(previous_version, 0, alice_prev_city, 1, bob_prev_city);
+          assert_ny_1271184168(this, 0, alice_new_city, 1, bob_new_city);
+          event_listeners.success();
+        }));      
+    });
     ny_1271184168.columns[0].city = alice_new_city
     ny_1271184168.columns[1].city = bob_new_city
     ny_1271184168.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny_1271184168.callback_token);
+        assert.equal(cb_token, ny_1271184168.before_save_token);
+        assert.equal(cb_token, ny_1271184168.after_save_token);
         StateLastLoginUsers.find("NY", 1271184168, column_predicate, {
           success: clean_up_on_exception_for(function(result) {
             ny_1271184168 = result;
@@ -1238,17 +1293,17 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
   function successful_destroy() {
     try {
       var cb_token = Math.random();;
-      StateLastLoginUsers.callbacks.after_destroy_super_column = clean_up_on_exception_for(
+      StateLastLoginUsers.add_callback("after_destroy_super_column", clean_up_on_exception_for(
         function(event_listeners, previous_version) {
-          this.callback_token = cb_token;
-          assert_ny_1271184168(this, 0, alice_new_city, 1, bob_new_city);
+          this.after_destroy_token = cb_token;
+          assert.strictEqual(ny_1271184168, this);
           event_listeners.success();
-        });
+        }));
       ny_1271184168.destroy({
         success: function() {
           logger.info("Successfully destroyed ny_1271184168.")
           StateLastLoginUsers.callbacks = {}
-          assert.equal(cb_token, ny_1271184168.callback_token);
+          assert.equal(cb_token, ny_1271184168.after_destroy_token);
           clean_up_on_exception_for(function(){unsuccessful_find(true)})();
         },
         error: function(mess) {          
@@ -1336,19 +1391,23 @@ function test_StateLastLoginUsers_state_level(test_done) {
     }
   }
   
+  var cb_names = ["before_save_row", "after_save_row"];
+  
   function first_save() {
     var cb_token = Math.random();
-    StateLastLoginUsers.callbacks.after_save_row = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert.equal(null, previous_version);
-        assert_ny_1271184168(this.columns[1], 1, "New York", 0, "Jackson Heights");
-        assert_ny_1271184169(this.columns[0], 1, "Elmhurst", 0, "Brooklyn");
-        event_listeners.success();
-      });
+    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert.equal(null, previous_version);
+          assert.strictEqual(ny, this);
+          event_listeners.success();
+        }));      
+    });
     ny.save({
      success: function(result) {
-       assert.equal(cb_token, ny.callback_token);
+       assert.equal(cb_token, ny.before_save_token);
+       assert.equal(cb_token, ny.after_save_token);
        logger.info("ny saved successfully.");
        clean_up_on_exception_for(successful_find)();
      },
@@ -1418,22 +1477,25 @@ function test_StateLastLoginUsers_state_level(test_done) {
     var chuck_prev_city = ny.columns[1].columns[0].city;
     var dave_prev_city = ny.columns[1].columns[1].city;
     var cb_token = Math.random();
-    StateLastLoginUsers.callbacks.after_save_row = clean_up_on_exception_for(
-      function(event_listeners, previous_version) {
-        this.callback_token = cb_token;
-        assert_ny_1271184168(previous_version.columns[0], 0, alice_prev_city, 1, bob_prev_city);
-        assert_ny_1271184169(previous_version.columns[1], 0, chuck_prev_city, 1, dave_prev_city);
-        assert_ny_1271184168(this.columns[0], 0, alice_new_city, 1, bob_new_city);
-        assert_ny_1271184169(this.columns[1], 0, chuck_new_city, 1, dave_new_city);
-        event_listeners.success();
-      });
+    StateLastLoginUsers.callbacks = {}
+    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
+    cb_names.forEach(function(cb_name) {
+      StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
+        function(event_listeners, previous_version) {
+          assert_ny_1271184168(previous_version.columns[0], 0, alice_prev_city, 1, bob_prev_city);
+          assert_ny_1271184169(previous_version.columns[1], 0, chuck_prev_city, 1, dave_prev_city);
+          assert.strictEqual(ny, this);
+          event_listeners.success();
+        }));      
+    });
     ny.columns[0].columns[0].city = alice_new_city
     ny.columns[0].columns[1].city = bob_new_city
     ny.columns[1].columns[0].city = chuck_new_city
     ny.columns[1].columns[1].city = dave_new_city
     ny.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny.callback_token);
+        assert.equal(cb_token, ny.before_save_token);
+        assert.equal(cb_token, ny.after_save_token);
         StateLastLoginUsers.find("NY", column_predicate, {
           success: clean_up_on_exception_for(function(result) {
             ny = result;
@@ -1458,18 +1520,17 @@ function test_StateLastLoginUsers_state_level(test_done) {
   function successful_destroy() {
     try {
       var cb_token = Math.random();;
-      StateLastLoginUsers.callbacks.after_destroy_row = clean_up_on_exception_for(
+      StateLastLoginUsers.add_callback("after_destroy_row", clean_up_on_exception_for(
         function(event_listeners, previous_version) {
-          this.callback_token = cb_token;
-          assert_ny_1271184168(this.columns[0], 0, alice_new_city, 1, bob_new_city);
-          assert_ny_1271184169(this.columns[1], 0, chuck_new_city, 1, dave_new_city);
+          this.after_destroy_token = cb_token;
+          assert.strictEqual(ny, this);
           event_listeners.success();
-        });
+        }));
       ny.destroy({
         success: function() {
           logger.info("Successfully destroyed ny.")
           StateLastLoginUsers.callbacks = {}
-          assert.equal(cb_token, ny.callback_token);
+          assert.equal(cb_token, ny.after_destroy_token);
           clean_up_on_exception_for(function(){unsuccessful_find(true)})();
         },
         error: function(mess) {          
@@ -1550,4 +1611,13 @@ function test_auto_key_generation(test_done) {
      })
     });    
   }
+}
+
+function add_token_callbacks(column_family, cb_names, token) {
+  cb_names.forEach(function(cb_name) {
+    column_family.add_callback(cb_name, function(event_listeners) { 
+      this[cb_name.match(/^(\w+?_\w+?)_/)[1] + "_token"] = token;
+      event_listeners.success();
+    });      
+  })
 }

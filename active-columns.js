@@ -64,7 +64,7 @@ function find_objects() {
     column_name = column_name_or_predicate;
     predicate = {column_names:[column_name]};
   }
-  
+
   // logger.debug("find_objects - keyspace: " + keyspace + ",column_family:" + column_family + 
   //              ",key:" + key + ",keys:" + sys.inspect(keys) + ",range:" + sys.inspect(range) +  
   //              ",super_column_name:" + super_column_name + ",column_name:" + column_name + 
@@ -87,6 +87,20 @@ function find_objects() {
        keys: keys, consistency_level: ConsistencyLevel.ONE})
   }
   
+  function insert_callback(o) {
+    if (column_name) {
+      insert_after_callbacks(keyspace, column_family, event_listeners, 
+                             "after_find_column", o);    
+    } else if (super_column_name) {
+      insert_after_callbacks(keyspace, column_family, event_listeners, 
+                             "after_find_super_column", o);    
+    } else {
+      insert_after_callbacks(keyspace, column_family, event_listeners, 
+                             "after_find_row", o);    
+
+    }    
+  }
+  
   get_request.addListener("success", function(result) {
     var object_result, timestamp;
     if (key) { // list of columns or super columns
@@ -100,6 +114,7 @@ function find_objects() {
         object_result = create_mem_object(keyspace, column_family, key, 
                           super_column_name, column_name, columns, timestamp);
         object_result.update_last_saved();
+        insert_callback(object_result);
       }                                              
     } else if (range) { // list of keyslices 
       object_result = [];
@@ -114,6 +129,7 @@ function find_objects() {
           var o = create_mem_object(keyspace, column_family, ks.key, 
             super_column_name, column_name, columns, timestamp)
           o.update_last_saved();
+          insert_callback(o);
           object_result.push(o);
         }
       })
@@ -129,6 +145,7 @@ function find_objects() {
           object_result[k] = create_mem_object(keyspace, column_family, ks.key, 
                                super_column_name, column_name, columns, timestamp)
           object_result[k].update_last_saved();
+          insert_callback(object_result[k]);
         }
       }
     }
@@ -177,7 +194,7 @@ function save_row_object(keyspace, column_family, o, event_listeners, delete_mis
   if (typeof delete_missing_columns == 'undefined') {
     delete_missing_columns = true
   }      
-  insert_object_callback(keyspace, column_family, event_listeners, 
+  insert_after_callbacks(keyspace, column_family, event_listeners, 
                          "after_save_row", o);
   save_object(keyspace, column_family, o.key, o, true, event_listeners, 
     function() {
@@ -264,7 +281,7 @@ function mutations_for_save_row_object(keyspace, column_family, o, delete_missin
 }
 
 function save_super_column_object(keyspace, column_family, key, o, event_listeners, delete_missing_columns) {
-  insert_object_callback(keyspace, column_family, event_listeners, 
+  insert_after_callbacks(keyspace, column_family, event_listeners, 
                          "after_save_super_column", o);
   save_object(keyspace, column_family, key, o, true, event_listeners, 
     function() {
@@ -335,7 +352,7 @@ function mutations_for_save_super_column_object(keyspace, column_family, o, dele
 }
 
 function save_column_object(keyspace, column_family, key, super_column_name, o, event_listeners) {
-  insert_object_callback(keyspace, column_family, event_listeners, 
+  insert_after_callbacks(keyspace, column_family, event_listeners, 
                          "after_save_column", o);
   save_object(keyspace, column_family, key, o, true, event_listeners, 
     function() {
@@ -363,7 +380,7 @@ function column_for_save_column_object(o) {
 }
 
 function destroy_row_object(keyspace, column_family, o, event_listeners) {
-  insert_object_callback(keyspace, column_family, event_listeners, 
+  insert_after_callbacks(keyspace, column_family, event_listeners, 
                          "after_destroy_row", o);
   save_object(keyspace, column_family, o.key, o, false, event_listeners, 
     function() {
@@ -420,7 +437,7 @@ function mutations_for_destroy_row_object(keyspace, column_family, o) {
 }
 
 function destroy_super_column_object(keyspace, column_family, key, o, event_listeners) {
-  insert_object_callback(keyspace, column_family, event_listeners, 
+  insert_after_callbacks(keyspace, column_family, event_listeners, 
                          "after_destroy_super_column", o);
   save_object(keyspace, column_family, key, o, false, event_listeners, 
     function() {
@@ -480,7 +497,7 @@ function mutations_for_destroy_super_column_object(keyspace, column_family, o) {
 }
 
 function destroy_column_object(keyspace, column_family, key, super_column_name, o, event_listeners) {
-  insert_object_callback(keyspace, column_family, event_listeners, 
+  insert_after_callbacks(keyspace, column_family, event_listeners, 
                          "after_destroy_column", o);
   save_object(keyspace, column_family, key, o, false, event_listeners, 
     function() { return [mutation_for_destroy_column_object(super_column_name, o)]; })  
@@ -538,8 +555,20 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
       get_uuids.send();
     }     
   }
-  
+    
   function now_have_id() {
+    if (update_last_saved && o.before_save_callbacks &&
+        o.before_save_callbacks.length > 0 ) {
+      var previous_version = o._last_saved;
+      call_callbacks(o.before_save_callbacks, o, function() {
+        do_save();
+      }, previous_version);
+    } else {
+      do_save();
+    }
+  }
+  
+  function do_save() {
     var mut_map = {};
     mut_map[key] = {};
     var mutations = mut_map[key][column_family] = mutations_func();
@@ -739,6 +768,9 @@ function activate_object(keyspace, column_family, key, super_column_name, column
       o._name = column_name;
       Object.defineProperty(o, "id", { get: this_name });
       Object.defineProperty(o, "key", { get: this_key });
+      Object.defineProperty(o, "before_save_callbacks", { 
+        get: function() { return cf.callbacks.before_save_column;} 
+      });
       o.get_super_column_name = function() { return super_column_name};
       o.save = function(event_listeners, delete_missing_columns) {
         save_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
@@ -751,6 +783,9 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     o._name = super_column_name;
     Object.defineProperty(o, "id", { get: this_name });
     Object.defineProperty(o, "key", { get: this_key });
+    Object.defineProperty(o, "before_save_callbacks", { 
+      get: function() { return cf.callbacks.before_save_super_column;} 
+    });
     if (!o.columns && !cf.subcolumn_names) o.columns = [];
     if (!o.timestamps && cf.subcolumn_names) o.timestamps = {};
     o.save = function(event_listeners, delete_missing_columns) {
@@ -765,6 +800,9 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     if (!o.columns && !cf.column_names) o.columns = [];      
     if (!o.timestamps && cf.column_names) o.timestamps = {};
     Object.defineProperty(o, "id", { get: this_key });
+    Object.defineProperty(o, "before_save_callbacks", { 
+      get: function() { return cf.callbacks.before_save_row;} 
+    });
     o.save = function(event_listeners) {
       save_row_object(keyspace, column_family, this, event_listeners);
     }
@@ -779,23 +817,16 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   return o;
 }
 
-function insert_object_callback(keyspace, column_family, event_listeners, callback_name, o) {
+function insert_after_callbacks(keyspace, column_family, event_listeners, callback_name, o) {
   var cf = get_column_family(keyspace, column_family)
-  if (!cf.callbacks[callback_name]) return;
+  var callbacks = cf.callbacks[callback_name]
+  if (!callbacks || callbacks.length < 1) 
+       return;
   var old_success = event_listeners.success;
   var previous_version = o._last_saved;
   event_listeners.success = function(result) {
-    cf.callbacks[callback_name].call(o, {
-      success: function() {
-        old_success(result);
-      }, 
-      error: function(mess) {
-        var error_mess = "Error in " + callback_name + " callback " + mess
-        event_listeners.error(error_mess);
-      }, 
-    }, previous_version);
-  }
-  
+    call_callbacks(callbacks, o, old_success, previous_version);    
+  }  
 }
 
 function path_s(keyspace, column_family, key, super_column_name, column_name) {
@@ -810,6 +841,22 @@ function path_s(keyspace, column_family, key, super_column_name, column_name) {
     s += '/' + column_name
   }
   return s;
+}
+
+function call_callbacks(callbacks, o, finish, previous_version, i) {
+  i = i || 0;
+  var cb = callbacks[i];
+  cb.call(o, {
+    success: function() {
+      if (i < callbacks.length - 1) 
+        call_callbacks(callbacks, o, finish, previous_version, i+1);
+      else finish();
+    },
+    error: function(mess) {
+      var error_mess = "Error in " + callback_name + " callback " + mess
+      event_listeners.error(error_mess);
+    }
+  }, previous_version)
 }
 
 
@@ -831,6 +878,11 @@ exports.initialize_keyspaces = function(ks_configs) {
         subcolumn_value_type: cf_config.subcolumn_value_type,
         callbacks: cf_config.callbacks || {}
       };
+      cf.add_callback = function(name, func) {
+        var cb_list = this.callbacks[name];
+        if (!cb_list) cb_list = this.callbacks[name] = [];
+        cb_list.push(func);         
+      }
       cf.new_object = function() {
         // logger.info("new_object - arguments: " + sys.inspect(arguments));
 
