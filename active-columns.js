@@ -1065,8 +1065,18 @@ exports.initialize_keyspaces = function(ks_configs) {
               throw "Cannot use an array to initialize this object."              
             }
           }
-        }  
-        var init_callbacks = 
+        }
+        
+        if (column_name) {
+          init_callbacks = this.callbacks.after_initialize_column || [];
+        } else if (super_column_name) {
+          init_callbacks = this.callbacks.after_initialize_super_column || [];
+        } else {
+          init_callbacks = this.callbacks.after_initialize_row || [];
+        }
+        init_callbacks.forEach(function(cb) {
+          cb.call(mem_obj);
+        })        
         return mem_obj;
       }
       cf.find = func_for_column_family(ks.name, cf.name, find_objects)

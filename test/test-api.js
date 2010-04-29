@@ -112,9 +112,12 @@ function test_Users1(test_done) {
   }
   
   function unsuccessful_destroy() {
+    var cb_token = Math.random();
+    add_token_callbacks(Users1, ["after_initialize_row"], cb_token);
     alice = Users1.new_object("alice", {
      city: "New York", state: "NY", last_login: 1271184168, sex: "F"
     });
+    assert.equal(cb_token, alice.after_initialize_token);
     try {
       alice.destroy();
       assert.ok(false, "Expected destroy for alice to throw an exception.");
@@ -384,7 +387,10 @@ function test_Users2(test_done) {
   }
   
   function unsuccessful_destroy() {
+    var cb_token = Math.random();
+    add_token_callbacks(Users2, ["after_initialize_row"], cb_token);
     alice = Users2.new_object("alice", alice_columns);
+    assert.equal(cb_token, alice.after_initialize_token);
     try {
       alice.destroy();
       assert.ok(false, "Expected destroy for alice to throw an exception.");
@@ -636,7 +642,10 @@ function _test_StateUsersX_user_level(test_done, column_family) {
   }
   
   function unsuccessful_destroy() {
+    var cb_token = Math.random();
+    add_token_callbacks(StateUsersX, ["after_initialize_" + callback_level], cb_token);
     ny_alice = StateUsersX.new_object("NY", "alice", alice_value);
+    assert.equal(cb_token, ny_alice.after_initialize_token);
     try {
       ny_alice.destroy();
       assert.ok(false, "Expected destroy for ny_alice to throw an exception.");
@@ -821,10 +830,12 @@ function _test_StateUsersX_state_level(test_done, column_family) {
   }
   
   function unsuccessful_destroy() {
+    add_token_callbacks(StateUsersX, ["after_initialize_row"], cb_token);
     ny = StateUsersX.new_object("NY", [
       alice_value,
       bob_value
     ]);
+    assert.equal(cb_token, ny.after_initialize_token);
     try {
       ny.destroy();
       assert.ok(false, "Expected destroy for ny to throw an exception.");
@@ -1029,7 +1040,9 @@ function test_StateLastLoginUsers_user_level(test_done) {
   }
   
   function unsuccessful_destroy() {
+    add_token_callbacks(StateLastLoginUsers, ["after_initialize_column"], cb_token);
     ny_1271184168_alice = StateLastLoginUsers.new_object("NY", 1271184168, "alice", alice_value);
+    assert.equal(cb_token, ny_1271184168_alice.after_initialize_token);
     try {
       ny_1271184168_alice.destroy();
       assert.ok(false, "Expected destroy for ny_1271184168_alice to throw an exception.");
@@ -1214,10 +1227,12 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
   }
   
   function unsuccessful_destroy() {
+    add_token_callbacks(StateLastLoginUsers, ["after_initialize_super_column"], cb_token);
     ny_1271184168 = StateLastLoginUsers.new_object("NY", 1271184168, [
       bob_value,
       alice_value
     ]);
+    assert.equal(cb_token, ny_1271184168.after_initialize_token);
     try {
       ny_1271184168.destroy();
       assert.ok(false, "Expected destroy for ny_1271184168 to throw an exception.");
@@ -1418,10 +1433,12 @@ function test_StateLastLoginUsers_state_level(test_done) {
   }
   
   function unsuccessful_destroy() {
+    add_token_callbacks(StateLastLoginUsers, ["after_initialize_row"], cb_token);
     ny = StateLastLoginUsers.new_object("NY", [
       {_name: 1271184169, columns:[dave_value, chuck_value]},
       {_name: 1271184168, columns:[bob_value, alice_value]}
     ]);
+    assert.equal(cb_token, ny.after_initialize_token);
     try {
       ny.destroy();
       assert.ok(false, "Expected destroy for ny to throw an exception.");
