@@ -90,25 +90,10 @@ function test_Users1(test_done) {
    // })
   start();
   
-  function start() { unsuccessful_find(); };
+  function start() { unsuccessful_find(unsuccessful_destroy); };
   
-  function unsuccessful_find(finish) {
-    var not_found_func = function(result) {
-      logger.info("not_found event for alice generated as expected.")
-      if (!finish) unsuccessful_destroy();
-    }
-    if (finish) {
-      not_found_func = clean_up_after(not_found_func);
-    }
-    Users1.find("alice", {
-      success: function() {
-        assert.ok(false, "Found alice unexpectedly.")
-      },
-      not_found: not_found_func,
-      error: function(mess) {
-        assert.ok(false, "Error when attempting to find alice: " + mess)
-      }    
-    })    
+  function unsuccessful_find(not_found_action) {
+    Users1.find("alice", unsuccessful_find_listeners("alice", not_found_action));    
   }
   
   function unsuccessful_destroy() {
@@ -126,10 +111,16 @@ function test_Users1(test_done) {
       assert.ok(false, "Expected destroy for alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy  for alice threw exception as expected: " + e);
-      first_save();
+      aborted_save();
     }
   }
 
+  function aborted_save() {
+    _aborted_save(Users1, "row", alice, "alice",  function() {
+      unsuccessful_find(clean_up_on_exception_for(first_save));
+    });
+  }
+  
   var save_cb_names = ["before_save_row", "after_save_row"];
   
   function first_save() {
@@ -304,7 +295,10 @@ function test_Users1(test_done) {
           Users1.callbacks = {}
           assert.equal(cb_token, alice.after_destroy_token);
           logger.info("Successfully destroyed alice.")
-          clean_up_on_exception_for(function(){unsuccessful_find(true)})();
+          clean_up_on_exception_for(function(){
+            // just pass no-op to clean_up_after to just do clean up
+            unsuccessful_find( clean_up_after(function(){}) );
+          })();
         },
         error: function(mess) {          
           assert.ok(false, "Error destroying alice: " + mess)
@@ -369,25 +363,10 @@ function test_Users2(test_done) {
    // })
   start();
     
-  function start() { unsuccessful_find(); };
+  function start() { unsuccessful_find(unsuccessful_destroy); };
   
-  function unsuccessful_find(finish) {
-    var not_found_func = function() {
-      logger.info("not_found event for alice generated as expected.")
-      if (!finish) clean_up_on_exception_for(unsuccessful_destroy)();
-    }
-    if (finish) {
-      not_found_func = clean_up_after(not_found_func);
-    }
-    Users2.find("alice", predicate, {
-      success: function() {
-        assert.ok(false, "Found alice unexpectedly.")
-      },
-      not_found: not_found_func,
-      error: function(mess) {
-        assert.ok(false, "Error when attempting to find alice: " + mess)
-      }    
-    })    
+  function unsuccessful_find(not_found_action) {
+    Users2.find("alice", predicate, unsuccessful_find_listeners("alice", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -402,8 +381,15 @@ function test_Users2(test_done) {
       assert.ok(false, "Expected destroy for alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy for alice threw exception as expected: " + e);
-      first_save();
+      aborted_save();
     }
+  }
+  
+  function aborted_save() {
+    _aborted_save(Users2, "row", alice, "alice", function() {
+      unsuccessful_find(clean_up_on_exception_for(first_save));
+    });
+    
   }
   
   var save_cb_names = ["before_save_row", "after_save_row"];
@@ -565,7 +551,10 @@ function test_Users2(test_done) {
           logger.info("Successfully destroyed alice.")
           assert.equal(cb_token, alice.after_destroy_token);
           Users2.callbacks = {}
-          clean_up_on_exception_for(function() {unsuccessful_find(true)})();
+          clean_up_on_exception_for(function(){
+            // just pass no-op to clean_up_after to just do clean up
+            unsuccessful_find( clean_up_after(function(){}) );
+          })();
         },
         error: function(mess) {          
           assert.ok(false, "Error destroying alice: " + mess)
@@ -627,25 +616,10 @@ function _test_StateUsersX_user_level(test_done, column_family) {
    // })
   start();
   
-  function start() { unsuccessful_find(); };
+  function start() { unsuccessful_find(unsuccessful_destroy); };
   
-  function unsuccessful_find(finish) {
-    var not_found_func = function(result) {
-      logger.info("not_found event for ny generated as expected.")
-      if (!finish) unsuccessful_destroy();
-    }
-    if (finish) {
-      not_found_func = clean_up_after(not_found_func);
-    }
-    StateUsersX.find("NY", "alice", {
-      success: function() {
-        assert.ok(false, "Found ny_alice unexpectedly.")
-      },
-      not_found: not_found_func,
-      error: function(mess) {
-        assert.ok(false, "Error when attempting to find ny_alice: " + mess)
-      }    
-    })    
+  function unsuccessful_find(not_found_action) {
+    StateUsersX.find("NY", "alice", unsuccessful_find_listeners("ny_alice", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -660,10 +634,17 @@ function _test_StateUsersX_user_level(test_done, column_family) {
       assert.ok(false, "Expected destroy for ny_alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny_alice threw exception as expected: " + e);
-      clean_up_on_exception_for(first_save)();
+      clean_up_on_exception_for(aborted_save)();
     }
   }
   
+  function aborted_save() {
+    _aborted_save(StateUsersX, callback_level, ny_alice, "ny_alice", function() {
+      unsuccessful_find(clean_up_on_exception_for(first_save));
+    });
+    
+  }
+
   var save_cb_names = ["before_save_" + callback_level, "after_save_" + callback_level];
   
   function first_save() {
@@ -770,7 +751,10 @@ function _test_StateUsersX_user_level(test_done, column_family) {
           StateUsersX.callbacks = {}
           assert.equal(cb_token, ny_alice.after_destroy_token);
           logger.info("Successfully destroyed ny_alice.")
-          clean_up_on_exception_for(function(){unsuccessful_find(true)})();
+          clean_up_on_exception_for(function(){
+            // just pass no-op to clean_up_after to just do clean up
+            unsuccessful_find( clean_up_after(function(){}) );
+          })();
         },
         error: function(mess) {          
           assert.ok(false, "Error destroying ny_alice: " + mess)
@@ -818,25 +802,10 @@ function _test_StateUsersX_state_level(test_done, column_family) {
    // })
   start();
   
-  function start() { unsuccessful_find(); };
+  function start() { unsuccessful_find(unsuccessful_destroy); };
   
-  function unsuccessful_find(finish) {
-    var not_found_func = function(result) {
-      logger.info("not_found event for ny generated as expected.")
-      if (!finish) unsuccessful_destroy();
-    }
-    if (finish) {
-      not_found_func = clean_up_after(not_found_func);
-    }
-    StateUsersX.find("NY", column_predicate, {
-      success: function() {
-        assert.ok(false, "Found ny unexpectedly.")
-      },
-      not_found: not_found_func,
-      error: function(mess) {
-        assert.ok(false, "Error when attempting to find ny: " + mess)
-      }    
-    })    
+  function unsuccessful_find(not_found_action) {
+    StateUsersX.find("NY", column_predicate, unsuccessful_find_listeners("ny", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -854,10 +823,17 @@ function _test_StateUsersX_state_level(test_done, column_family) {
       assert.ok(false, "Expected destroy for ny to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny threw exception as expected: " + e);
-      clean_up_on_exception_for(first_save)();
+      clean_up_on_exception_for(aborted_save)();
     }
   }
   
+  function aborted_save() {
+    _aborted_save(StateUsersX, "row", ny, "ny", function() {
+      unsuccessful_find(clean_up_on_exception_for(first_save));
+    });
+    
+  }
+    
   var save_cb_names = ["before_save_row", "after_save_row"];
   
   function first_save() {
@@ -979,7 +955,10 @@ function _test_StateUsersX_state_level(test_done, column_family) {
           logger.info("Successfully destroyed ny.")
           StateUsersX.callbacks = {}
           assert.equal(cb_token, ny.after_destroy_token);
-          clean_up_on_exception_for(function(){unsuccessful_find(true)})();
+          clean_up_on_exception_for(function(){
+            // just pass no-op to clean_up_after to just do clean up
+            unsuccessful_find( clean_up_after(function(){}) );
+          })();
         },
         error: function(mess) {          
           assert.ok(false, "Error destroying ny: " + mess)
@@ -1032,25 +1011,11 @@ function test_StateLastLoginUsers_user_level(test_done) {
    // })
   start();
   
-  function start() { unsuccessful_find(); };
+  function start() { unsuccessful_find(unsuccessful_destroy); };
   
-  function unsuccessful_find(finish) {
-    var not_found_func = function(result) {
-      logger.info("not_found event for ny_1271184168_alice generated as expected.")
-      if (!finish) unsuccessful_destroy();
-    }
-    if (finish) {
-      not_found_func = clean_up_after(not_found_func);
-    }
-    StateLastLoginUsers.find("NY", 1271184168, "alice", {
-      success: function() {
-        assert.ok(false, "Found ny_1271184168_alice unexpectedly.")
-      },
-      not_found: not_found_func,
-      error: function(mess) {
-        assert.ok(false, "Error when attempting to find ny_1271184168_alice: " + mess)
-      }    
-    })    
+  function unsuccessful_find(not_found_action) {
+    StateLastLoginUsers.find("NY", 1271184168, "alice", 
+      unsuccessful_find_listeners("ny_1271184168_alice", not_found_action));
   }
   
   function unsuccessful_destroy() {
@@ -1065,10 +1030,17 @@ function test_StateLastLoginUsers_user_level(test_done) {
       assert.ok(false, "Expected destroy for ny_1271184168_alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny_1271184168_alice threw exception as expected: " + e);
-      clean_up_on_exception_for(first_save)();
+      clean_up_on_exception_for(aborted_save)();
     }
   }
   
+  function aborted_save() {
+    _aborted_save(StateLastLoginUsers, "column", ny_1271184168_alice, "ny_1271184168_alice", 
+                  function() {
+                    unsuccessful_find(clean_up_on_exception_for(first_save));
+                  });
+  }
+    
   var save_cb_names = ["before_save_column", "after_save_column"];
   
   function first_save() {
@@ -1175,7 +1147,10 @@ function test_StateLastLoginUsers_user_level(test_done) {
           logger.info("Successfully destroyed ny_1271184168_alice.")
           StateLastLoginUsers.callbacks = {}
           assert.equal(cb_token, ny_1271184168_alice.after_destroy_token);
-          clean_up_on_exception_for(function(){unsuccessful_find(true)})();
+          clean_up_on_exception_for(function(){
+            // just pass no-op to clean_up_after to just do clean up
+            unsuccessful_find( clean_up_after(function(){}) );
+          })();
         },
         error: function(mess) {          
           assert.ok(false, "Error destroying ny_1271184168_alice: " + mess)
@@ -1223,25 +1198,11 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
    // })
   start();
   
-  function start() { unsuccessful_find(); };
+  function start() { unsuccessful_find(unsuccessful_destroy); };
   
-  function unsuccessful_find(finish) {
-    var not_found_func = function(result) {
-      logger.info("not_found event for ny generated as expected.")
-      if (!finish) unsuccessful_destroy();
-    }
-    if (finish) {
-      not_found_func = clean_up_after(not_found_func);
-    }
-    StateLastLoginUsers.find("NY", 1271184168, column_predicate, {
-      success: function() {
-        assert.ok(false, "Found ny_1271184168 unexpectedly.")
-      },
-      not_found: not_found_func,
-      error: function(mess) {
-        assert.ok(false, "Error when attempting to find ny_1271184168: " + mess)
-      }    
-    })    
+  function unsuccessful_find(not_found_action) {
+    StateLastLoginUsers.find("NY", 1271184168, 
+      unsuccessful_find_listeners("ny_1271184168", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -1259,8 +1220,15 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
       assert.ok(false, "Expected destroy for ny_1271184168 to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny_1271184168 threw exception as expected: " + e);
-      clean_up_on_exception_for(first_save)();
+      clean_up_on_exception_for(aborted_save)();
     }
+  }
+  
+  function aborted_save() {
+    _aborted_save(StateLastLoginUsers, "super_column", ny_1271184168, "ny_1271184168", 
+                  function() {
+                    unsuccessful_find(clean_up_on_exception_for(first_save));
+                  });
   }
   
   var save_cb_names = ["before_save_super_column", "after_save_super_column"];
@@ -1381,7 +1349,10 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
           logger.info("Successfully destroyed ny_1271184168.")
           StateLastLoginUsers.callbacks = {}
           assert.equal(cb_token, ny_1271184168.after_destroy_token);
-          clean_up_on_exception_for(function(){unsuccessful_find(true)})();
+          clean_up_on_exception_for(function(){
+            // just pass no-op to clean_up_after to just do clean up
+            unsuccessful_find( clean_up_after(function(){}) );
+          })();
         },
         error: function(mess) {          
           assert.ok(false, "Error destroying ny_1271184168: " + mess)
@@ -1433,25 +1404,10 @@ function test_StateLastLoginUsers_state_level(test_done) {
    // })
   start();
   
-  function start() { unsuccessful_find(); };
+  function start() { unsuccessful_find(unsuccessful_destroy); };
   
-  function unsuccessful_find(finish) {
-    var not_found_func = function(result) {
-      logger.info("not_found event for ny generated as expected.")
-      if (!finish) unsuccessful_destroy();
-    }
-    if (finish) {
-      not_found_func = clean_up_after(not_found_func);
-    }
-    StateLastLoginUsers.find("NY", column_predicate, {
-      success: function() {
-        assert.ok(false, "Found ny unexpectedly.")
-      },
-      not_found: not_found_func,
-      error: function(mess) {
-        assert.ok(false, "Error when attempting to find ny: " + mess)
-      }    
-    })    
+  function unsuccessful_find(not_found_action) {
+    StateLastLoginUsers.find("NY", unsuccessful_find_listeners("ny", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -1469,8 +1425,15 @@ function test_StateLastLoginUsers_state_level(test_done) {
       assert.ok(false, "Expected destroy for ny to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny threw exception as expected: " + e);
-      clean_up_on_exception_for(first_save)();
+      clean_up_on_exception_for(aborted_save)();
     }
+  }
+  
+  function aborted_save() {
+    _aborted_save(StateLastLoginUsers, "row", ny, "ny", 
+                  function() {
+                    unsuccessful_find(clean_up_on_exception_for(first_save));
+                  });
   }
   
   var save_cb_names = ["before_save_row", "after_save_row"];
@@ -1618,7 +1581,10 @@ function test_StateLastLoginUsers_state_level(test_done) {
           logger.info("Successfully destroyed ny.")
           StateLastLoginUsers.callbacks = {}
           assert.equal(cb_token, ny.after_destroy_token);
-          clean_up_on_exception_for(function(){unsuccessful_find(true)})();
+          clean_up_on_exception_for(function(){
+            // just pass no-op to clean_up_after to just do clean up
+            unsuccessful_find( clean_up_after(function(){}) );
+          })();
         },
         error: function(mess) {          
           assert.ok(false, "Error destroying ny: " + mess)
@@ -1697,6 +1663,36 @@ function test_auto_key_generation(test_done) {
      })
     });    
   }
+}
+
+
+function unsuccessful_find_listeners(object_name, not_found_action) {
+  return {
+    success: function() {
+      assert.ok(false, "Found " + object_name + " unexpectedly.")
+    },
+    not_found: function() {
+      logger.info("not_found event for " + object_name + " generated as expected.")
+      not_found_action();
+    },
+    error: function(mess) {
+      assert.ok(false, "Error when attempting to find " + object_name + ": " + mess)
+    }    
+  };
+}
+
+function _aborted_save(column_family, level, object, object_name, next) {
+  column_family.add_callback("before_save_" + level, function(event_listeners) { event_listeners.error(); })
+  object.save({
+   success: function(result) {
+     assert.ok(false, "Save for " + object_name + " unexpectedly succeeded.");
+   },
+   error: function() {
+     logger.info("Save for " + object_name + " generated error as expected.");
+     column_family.callbacks = {}
+     next();
+   }
+  });    
 }
 
 function tokenCallbackManager() {
