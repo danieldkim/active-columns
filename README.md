@@ -92,9 +92,9 @@ Here are various examples of different object models. The examples here form the
 basis of the tests in test/test-api.js. Check them out for a more in-depth look
 at how to work with them.
 
-Note that every object in these examples also has <code>get\_id()</code>,
-<code>save()</code>, and <code>destroy()</code> methods, but they are elided
-here.
+Note that every object in these examples also has an <code>id</code> property,
+and <code>save()</code>,<code>destroy()</code>, etc. methods, but they are
+elided here.
 
 ### "Users1" column family
 
@@ -554,15 +554,14 @@ applies to column objects under a super column.
 
 #### {object}.save( event\_listeners, delete\_missing\_columns=true )
 
-Saves {object}. Returns the "id" (see <code>get_id()</code> method) of the
-object as the first and only parameter to the "success" listener (in addition to
-setting it on the saved object). e.g.:
+Saves {object}. Returns the "id" of the object as the first and only parameter
+to the "success" listener (in addition to setting it on the saved object). e.g.:
 
     var post = Posts.new_object({ title: "A  post title.", text: "This is a post."} );
     post.save({
       success: function(result) {
         sys.puts("id of post is " + result);
-        sys.puts("id of post is " + post.get_id());
+        sys.puts("id of post is " + post.id);
         sys.puts("id of post is " + post.key);
       }
     })
