@@ -113,11 +113,14 @@ function test_Users1(test_done) {
   
   function unsuccessful_destroy() {
     var cb_token = Math.random();
-    add_token_callbacks(Users1, ["after_initialize_row"], cb_token);
+    var tcm = tokenCallbackManager()
+    var cb_token = Math.random();
+    var init_cb_names = ["after_initialize_row"];
+    tcm.add(Users1, init_cb_names, cb_token);
     alice = Users1.new_object("alice", {
      city: "New York", state: "NY", last_login: 1271184168, sex: "F"
     });
-    assert.equal(cb_token, alice.after_initialize_token);
+    tcm.assert(init_cb_names, cb_token);
     try {
       alice.destroy();
       assert.ok(false, "Expected destroy for alice to throw an exception.");
@@ -127,12 +130,13 @@ function test_Users1(test_done) {
     }
   }
 
-  var cb_names = ["before_save_row", "after_save_row"];
+  var save_cb_names = ["before_save_row", "after_save_row"];
   
   function first_save() {
     var cb_token = Math.random();
-    add_token_callbacks(Users1, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(Users1, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       Users1.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert.equal(null, previous_version);
@@ -143,8 +147,7 @@ function test_Users1(test_done) {
     alice.save({
      success: function(result) {
        logger.info("Alice saved successfully.");
-       assert.equal(cb_token, alice.before_save_token);
-       assert.equal(cb_token, alice.after_save_token);
+       tcm.assert(save_cb_names, cb_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -155,14 +158,15 @@ function test_Users1(test_done) {
   
   function successful_find() {
     var cb_token = Math.random();
-    add_token_callbacks(Users1, ["after_find_row", "after_initialize_row"], cb_token);
+    var find_cb_names = ["after_find_row", "after_initialize_row"]
+    var tcm = tokenCallbackManager();
+    tcm.add(Users1, find_cb_names, cb_token);
     Users1.find("alice", {
       success: clean_up_on_exception_for(function(result) {
         alice = result;
         assert_alice(alice, "New York");
         assert_alice(alice._last_saved, "New York");
-        assert.equal(cb_token, alice.after_find_token);
-        assert.equal(cb_token, alice.after_initialize_token);
+        tcm.assert(find_cb_names, cb_token);
         logger.info("Alice found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -190,9 +194,10 @@ function test_Users1(test_done) {
     assert_alice(alice, "Los Angeles");
     assert_alice(alice._last_saved, "New York");
     Users1.callbacks = {}
-    cb_token = Math.random();;
-    add_token_callbacks(Users1, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var cb_token = Math.random();;
+    var tcm = tokenCallbackManager();
+    tcm.add(Users1, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       Users1.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert_alice(previous_version, "New York");
@@ -202,8 +207,7 @@ function test_Users1(test_done) {
     });
     alice.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, alice.before_save_token);
-        assert.equal(cb_token, alice.after_save_token);
+        tcm.assert(save_cb_names, cb_token);
         Users1.find("alice", {
           success: clean_up_on_exception_for(function(result) {
             logger.info("Alice saved successfully after find.");
@@ -388,9 +392,11 @@ function test_Users2(test_done) {
   
   function unsuccessful_destroy() {
     var cb_token = Math.random();
-    add_token_callbacks(Users2, ["after_initialize_row"], cb_token);
+    var tcm = tokenCallbackManager();
+    var init_cb_names = ["after_initialize_row"];
+    tcm.add(Users2, init_cb_names, cb_token);
     alice = Users2.new_object("alice", alice_columns);
-    assert.equal(cb_token, alice.after_initialize_token);
+    tcm.assert(init_cb_names, cb_token);
     try {
       alice.destroy();
       assert.ok(false, "Expected destroy for alice to throw an exception.");
@@ -400,12 +406,13 @@ function test_Users2(test_done) {
     }
   }
   
-  var cb_names = ["before_save_row", "after_save_row"];
+  var save_cb_names = ["before_save_row", "after_save_row"];
   
   function first_save() {
     var cb_token = Math.random();
-    add_token_callbacks(Users2, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(Users2, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       Users2.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert.equal(null, previous_version);
@@ -416,8 +423,7 @@ function test_Users2(test_done) {
     alice.save({
      success: function(result) {
        logger.info("Alice saved successfully.");
-       assert.equal(cb_token, alice.before_save_token);
-       assert.equal(cb_token, alice.after_save_token);
+       tcm.assert(save_cb_names, cb_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -428,13 +434,14 @@ function test_Users2(test_done) {
   
   function successful_find() {
     var cb_token = Math.random();
-    add_token_callbacks(Users2, ["after_find_row", "after_initialize_row"], cb_token);
+    var tcm = tokenCallbackManager();
+    var find_cb_names = ["after_find_row", "after_initialize_row"];
+    tcm.add(Users2, find_cb_names, cb_token);
     Users2.find("alice", predicate, {
       success: clean_up_on_exception_for(function(result) {
         alice = result;
         assert_alice(alice, "New York");
-        assert.equal(cb_token, alice.after_find_token);
-        assert.equal(cb_token, alice.after_initialize_token);
+        tcm.assert(find_cb_names, cb_token);
         logger.info("Alice found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -465,8 +472,9 @@ function test_Users2(test_done) {
     _.detect(alice.columns, function(col) {return col.name == "city"}).value = "Los Angeles";
     Users2.callbacks = {}
     var cb_token = Math.random();
-    add_token_callbacks(Users2, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(Users2, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       Users2.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert_alice(previous_version, "New York");
@@ -476,8 +484,7 @@ function test_Users2(test_done) {
     });
     alice.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, alice.before_save_token);
-        assert.equal(cb_token, alice.after_save_token);
+        tcm.assert(save_cb_names, cb_token);
         logger.info("Alice saved successfully after find.");
         Users2.find("alice", predicate, {
           success: clean_up_on_exception_for(function(result) {
@@ -643,9 +650,11 @@ function _test_StateUsersX_user_level(test_done, column_family) {
   
   function unsuccessful_destroy() {
     var cb_token = Math.random();
-    add_token_callbacks(StateUsersX, ["after_initialize_" + callback_level], cb_token);
+    var tcm = tokenCallbackManager();
+    var init_cb_names = ["after_initialize_" + callback_level];
+    tcm.add(StateUsersX, init_cb_names, cb_token);
     ny_alice = StateUsersX.new_object("NY", "alice", alice_value);
-    assert.equal(cb_token, ny_alice.after_initialize_token);
+    tcm.assert(init_cb_names, cb_token);
     try {
       ny_alice.destroy();
       assert.ok(false, "Expected destroy for ny_alice to throw an exception.");
@@ -655,12 +664,13 @@ function _test_StateUsersX_user_level(test_done, column_family) {
     }
   }
   
-  var cb_names = ["before_save_" + callback_level, "after_save_" + callback_level];
+  var save_cb_names = ["before_save_" + callback_level, "after_save_" + callback_level];
   
   function first_save() {
     var cb_token = Math.random();
-    add_token_callbacks(StateUsersX, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateUsersX, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateUsersX.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert.equal(null, previous_version);
@@ -671,8 +681,7 @@ function _test_StateUsersX_user_level(test_done, column_family) {
     ny_alice.save({
      success: function(result) {
        logger.info("ny_alice saved successfully.");
-       assert.equal(cb_token, ny_alice.before_save_token);
-       assert.equal(cb_token, ny_alice.after_save_token);
+       tcm.assert(save_cb_names, cb_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -683,13 +692,14 @@ function _test_StateUsersX_user_level(test_done, column_family) {
   
   function successful_find() {
     var cb_token = Math.random();
-    add_token_callbacks(StateUsersX, ["after_find_" + callback_level, "after_initialize_" + callback_level], cb_token);
+    var tcm = tokenCallbackManager();
+    var find_cb_names = ["after_find_" + callback_level, "after_initialize_" + callback_level];
+    tcm.add(StateUsersX, find_cb_names, cb_token);
     StateUsersX.find("NY", "alice", {
       success: clean_up_on_exception_for(function(result) {
         ny_alice = result;
         assert_ny_alice(ny_alice, "New York");
-        assert.equal(cb_token, ny_alice.after_find_token);
-        assert.equal(cb_token, ny_alice.after_initialize_token);
+        tcm.assert(find_cb_names, cb_token);
         logger.info("ny_alice found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -714,8 +724,9 @@ function _test_StateUsersX_user_level(test_done, column_family) {
     var prev_city = ny_alice.city;
     var cb_token = Math.random();
     StateUsersX.callbacks = {};
-    add_token_callbacks(StateUsersX, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateUsersX, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateUsersX.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert_ny_alice(previous_version, prev_city);
@@ -726,8 +737,7 @@ function _test_StateUsersX_user_level(test_done, column_family) {
     ny_alice.city = alice_new_city
     ny_alice.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny_alice.before_save_token);
-        assert.equal(cb_token, ny_alice.after_save_token);
+        tcm.assert(save_cb_names, cb_token);
         StateUsersX.find("NY", "alice", {
           success: clean_up_on_exception_for(function(result) {
             ny_alice = result;
@@ -830,12 +840,15 @@ function _test_StateUsersX_state_level(test_done, column_family) {
   }
   
   function unsuccessful_destroy() {
-    add_token_callbacks(StateUsersX, ["after_initialize_row"], cb_token);
+    var tcm = tokenCallbackManager();
+    var cb_token = Math.random();
+    var init_cb_names = ["after_initialize_row"]
+    tcm.add(StateUsersX, init_cb_names, cb_token);
     ny = StateUsersX.new_object("NY", [
       alice_value,
       bob_value
     ]);
-    assert.equal(cb_token, ny.after_initialize_token);
+    tcm.assert(init_cb_names, cb_token);
     try {
       ny.destroy();
       assert.ok(false, "Expected destroy for ny to throw an exception.");
@@ -845,12 +858,13 @@ function _test_StateUsersX_state_level(test_done, column_family) {
     }
   }
   
-  var cb_names = ["before_save_row", "after_save_row"];
+  var save_cb_names = ["before_save_row", "after_save_row"];
   
   function first_save() {
     var cb_token = Math.random();
-    add_token_callbacks(StateUsersX, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateUsersX, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateUsersX.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert.equal(null, previous_version);
@@ -861,8 +875,7 @@ function _test_StateUsersX_state_level(test_done, column_family) {
     ny.save({
      success: function(result) {
        logger.info("ny saved successfully.");
-       assert.equal(cb_token, ny.before_save_token);
-       assert.equal(cb_token, ny.after_save_token);
+       tcm.assert(save_cb_names, cb_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -873,13 +886,14 @@ function _test_StateUsersX_state_level(test_done, column_family) {
   
   function successful_find() {
     var cb_token = Math.random();
-    add_token_callbacks(StateUsersX, ["after_find_row", "after_initialize_row"], cb_token);
+    var tcm = tokenCallbackManager();
+    var find_cb_names = ["after_find_row", "after_initialize_row"]
+    tcm.add(StateUsersX, find_cb_names, cb_token);
     StateUsersX.find("NY", column_predicate, {
       success: clean_up_on_exception_for(function(result) {
         ny = result;
         assert.equal(2, ny.columns.length);
-        assert.equal(cb_token, ny.after_find_token);
-        assert.equal(cb_token, ny.after_initialize_token);
+        tcm.assert(find_cb_names, cb_token);
         ny_alice = ny.columns[0];
         ny_bob = ny.columns[1];
         assert_ny_alice(ny_alice, "New York");
@@ -917,8 +931,9 @@ function _test_StateUsersX_state_level(test_done, column_family) {
     ny.columns[1].city = bob_new_city
     var cb_token = Math.random();
     StateUsersX.callbacks = {}
-    add_token_callbacks(StateUsersX, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateUsersX, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateUsersX.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert_ny_alice(previous_version.columns[0], prev_city);
@@ -928,8 +943,7 @@ function _test_StateUsersX_state_level(test_done, column_family) {
     });
     ny.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny.before_save_token);
-        assert.equal(cb_token, ny.after_save_token);
+        tcm.assert(save_cb_names, cb_token);
         StateUsersX.find("NY", column_predicate, {
           success: clean_up_on_exception_for(function(result) {
             ny = result;
@@ -1040,9 +1054,12 @@ function test_StateLastLoginUsers_user_level(test_done) {
   }
   
   function unsuccessful_destroy() {
-    add_token_callbacks(StateLastLoginUsers, ["after_initialize_column"], cb_token);
+    var tcm = tokenCallbackManager();
+    var init_cb_names = ["after_initialize_column"]
+    var cb_token = Math.random();
+    tcm.add(StateLastLoginUsers, init_cb_names, cb_token);
     ny_1271184168_alice = StateLastLoginUsers.new_object("NY", 1271184168, "alice", alice_value);
-    assert.equal(cb_token, ny_1271184168_alice.after_initialize_token);
+    tcm.assert(init_cb_names, cb_token);
     try {
       ny_1271184168_alice.destroy();
       assert.ok(false, "Expected destroy for ny_1271184168_alice to throw an exception.");
@@ -1052,12 +1069,13 @@ function test_StateLastLoginUsers_user_level(test_done) {
     }
   }
   
-  var cb_names = ["before_save_column", "after_save_column"];
+  var save_cb_names = ["before_save_column", "after_save_column"];
   
   function first_save() {
     var cb_token = Math.random();
-    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert.equal(null, previous_version);
@@ -1068,8 +1086,7 @@ function test_StateLastLoginUsers_user_level(test_done) {
     ny_1271184168_alice.save({
      success: function(result) {
        logger.info("ny_1271184168_alice saved successfully.");
-       assert.equal(cb_token, ny_1271184168_alice.before_save_token);
-       assert.equal(cb_token, ny_1271184168_alice.after_save_token);
+       tcm.assert(save_cb_names, cb_token);
        clean_up_on_exception_for(successful_find)();
      },
      error: function(mess) {
@@ -1080,13 +1097,14 @@ function test_StateLastLoginUsers_user_level(test_done) {
   
   function successful_find() {
     var cb_token = Math.random();
-    add_token_callbacks(StateLastLoginUsers, ["after_find_column", "after_initialize_column"], cb_token);
+    var tcm = tokenCallbackManager();
+    var find_cb_names = ["after_find_column", "after_initialize_column"];
+    tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
     StateLastLoginUsers.find("NY", 1271184168, "alice", {
       success: clean_up_on_exception_for(function(result) {
         ny_1271184168_alice = result;
         assert_ny_1271184168_alice(ny_1271184168_alice, "New York");
-        assert.equal(cb_token, ny_1271184168_alice.after_find_token);
-        assert.equal(cb_token, ny_1271184168_alice.after_initialize_token);
+        tcm.assert(find_cb_names, cb_token);
         logger.info("ny_1271184168_alice found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -1111,8 +1129,9 @@ function test_StateLastLoginUsers_user_level(test_done) {
     var prev_city = ny_1271184168_alice.city; 
     var cb_token = Math.random();
     StateLastLoginUsers.callbacks = {}
-    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert_ny_1271184168_alice(previous_version, prev_city);
@@ -1123,8 +1142,7 @@ function test_StateLastLoginUsers_user_level(test_done) {
     ny_1271184168_alice.city = alice_new_city
     ny_1271184168_alice.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny_1271184168_alice.before_save_token);
-        assert.equal(cb_token, ny_1271184168_alice.after_save_token);
+        tcm.assert(save_cb_names, cb_token);
         StateLastLoginUsers.find("NY", 1271184168, "alice", {
           success: clean_up_on_exception_for(function(result) {
             ny_1271184168_alice = result;
@@ -1227,12 +1245,15 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
   }
   
   function unsuccessful_destroy() {
-    add_token_callbacks(StateLastLoginUsers, ["after_initialize_super_column"], cb_token);
+    var tcm = tokenCallbackManager();
+    var init_cb_names = ["after_initialize_super_column"];
+    var cb_token = Math.random();
+    tcm.add(StateLastLoginUsers, init_cb_names, cb_token);
     ny_1271184168 = StateLastLoginUsers.new_object("NY", 1271184168, [
       bob_value,
       alice_value
     ]);
-    assert.equal(cb_token, ny_1271184168.after_initialize_token);
+    tcm.assert(init_cb_names, cb_token);
     try {
       ny_1271184168.destroy();
       assert.ok(false, "Expected destroy for ny_1271184168 to throw an exception.");
@@ -1242,12 +1263,13 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
     }
   }
   
-  var cb_names = ["before_save_super_column", "after_save_super_column"];
+  var save_cb_names = ["before_save_super_column", "after_save_super_column"];
   
   function first_save() {
     var cb_token = Math.random();
-    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert.equal(null, previous_version);
@@ -1257,8 +1279,7 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
     });
     ny_1271184168.save({
      success: function(result) {
-       assert.equal(cb_token, ny_1271184168.before_save_token);
-       assert.equal(cb_token, ny_1271184168.after_save_token);
+       tcm.assert(save_cb_names, cb_token);
        logger.info("ny_1271184168 saved successfully.");
        clean_up_on_exception_for(successful_find)();
      },
@@ -1270,13 +1291,14 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
   
   function successful_find() {
     var cb_token = Math.random();
-    add_token_callbacks(StateLastLoginUsers, ["after_find_super_column", "after_initialize_super_column"], cb_token);
+    var tcm = tokenCallbackManager();
+    var find_cb_names = ["after_find_super_column", "after_initialize_super_column"]
+    tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
     StateLastLoginUsers.find("NY", 1271184168, column_predicate, {
       success: clean_up_on_exception_for(function(result) {
         ny_1271184168 = result;
         assert_ny_1271184168(ny_1271184168, 0, "New York", 1, "Jackson Heights");
-        assert.equal(cb_token, ny_1271184168.after_find_token);
-        assert.equal(cb_token, ny_1271184168.after_initialize_token);
+        tcm.assert(find_cb_names, cb_token);
         logger.info("ny_1271184168 found successfully and save result validated.");
         clean_up_on_exception_for(save_after_find)();
       }),
@@ -1312,8 +1334,9 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
     var bob_prev_city = ny_1271184168.columns[1].city;
     var cb_token = Math.random();
     StateLastLoginUsers.callbacks = {}
-    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert_ny_1271184168(previous_version, 0, alice_prev_city, 1, bob_prev_city);
@@ -1325,8 +1348,7 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
     ny_1271184168.columns[1].city = bob_new_city
     ny_1271184168.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny_1271184168.before_save_token);
-        assert.equal(cb_token, ny_1271184168.after_save_token);
+        tcm.assert(save_cb_names, cb_token);
         StateLastLoginUsers.find("NY", 1271184168, column_predicate, {
           success: clean_up_on_exception_for(function(result) {
             ny_1271184168 = result;
@@ -1433,12 +1455,15 @@ function test_StateLastLoginUsers_state_level(test_done) {
   }
   
   function unsuccessful_destroy() {
-    add_token_callbacks(StateLastLoginUsers, ["after_initialize_row"], cb_token);
+    var tcm = tokenCallbackManager();
+    var init_cb_names = ["after_initialize_row"];
+    var cb_token = Math.random();
+    tcm.add(StateLastLoginUsers, init_cb_names, cb_token);
     ny = StateLastLoginUsers.new_object("NY", [
       {_name: 1271184169, columns:[dave_value, chuck_value]},
       {_name: 1271184168, columns:[bob_value, alice_value]}
     ]);
-    assert.equal(cb_token, ny.after_initialize_token);
+    tcm.assert(init_cb_names, cb_token);
     try {
       ny.destroy();
       assert.ok(false, "Expected destroy for ny to throw an exception.");
@@ -1448,12 +1473,13 @@ function test_StateLastLoginUsers_state_level(test_done) {
     }
   }
   
-  var cb_names = ["before_save_row", "after_save_row"];
+  var save_cb_names = ["before_save_row", "after_save_row"];
   
   function first_save() {
     var cb_token = Math.random();
-    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert.equal(null, previous_version);
@@ -1463,8 +1489,7 @@ function test_StateLastLoginUsers_state_level(test_done) {
     });
     ny.save({
      success: function(result) {
-       assert.equal(cb_token, ny.before_save_token);
-       assert.equal(cb_token, ny.after_save_token);
+       tcm.assert(save_cb_names, cb_token);
        logger.info("ny saved successfully.");
        clean_up_on_exception_for(successful_find)();
      },
@@ -1476,13 +1501,14 @@ function test_StateLastLoginUsers_state_level(test_done) {
   
   function successful_find() {
     var cb_token = Math.random();
-    add_token_callbacks(StateLastLoginUsers, ["after_find_row", "after_initialize_row"], cb_token);
+    var tcm = tokenCallbackManager();
+    var find_cb_names = ["after_find_row", "after_initialize_row"]
+    tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
     StateLastLoginUsers.find("NY", column_predicate, {
       success: clean_up_on_exception_for(function(result) {
         ny = result;
         assert.equal(2, ny.columns.length);
-        assert.equal(cb_token, ny.after_find_token);
-        assert.equal(cb_token, ny.after_initialize_token);
+        tcm.assert(find_cb_names, cb_token);
         ny_1271184168 = ny.columns[0];
         ny_1271184169 = ny.columns[1];
         assert_ny_1271184168(ny_1271184168, 0, "New York", 1, "Jackson Heights");
@@ -1539,8 +1565,9 @@ function test_StateLastLoginUsers_state_level(test_done) {
     var dave_prev_city = ny.columns[1].columns[1].city;
     var cb_token = Math.random();
     StateLastLoginUsers.callbacks = {}
-    add_token_callbacks(StateLastLoginUsers, cb_names, cb_token);
-    cb_names.forEach(function(cb_name) {
+    var tcm = tokenCallbackManager();
+    tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
+    save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, clean_up_on_exception_for(
         function(event_listeners, previous_version) {
           assert_ny_1271184168(previous_version.columns[0], 0, alice_prev_city, 1, bob_prev_city);
@@ -1555,8 +1582,7 @@ function test_StateLastLoginUsers_state_level(test_done) {
     ny.columns[1].columns[1].city = dave_new_city
     ny.save({
       success: clean_up_on_exception_for(function(result) {
-        assert.equal(cb_token, ny.before_save_token);
-        assert.equal(cb_token, ny.after_save_token);
+        tcm.assert(save_cb_names, cb_token);
         StateLastLoginUsers.find("NY", column_predicate, {
           success: clean_up_on_exception_for(function(result) {
             ny = result;
@@ -1673,11 +1699,29 @@ function test_auto_key_generation(test_done) {
   }
 }
 
-function add_token_callbacks(column_family, cb_names, token) {
-  cb_names.forEach(function(cb_name) {
-    column_family.add_callback(cb_name, function(event_listeners) { 
-      this[cb_name.match(/^(\w+?_\w+?)_/)[1] + "_token"] = token;
-      if (event_listeners) event_listeners.success();
-    });      
-  })
+function tokenCallbackManager() {
+  var callbackResults = {};
+  
+  return {
+    add: function(column_family, cb_names, token) {
+      cb_names.forEach(function(cb_name) {
+        callbackResults[cb_name] = [];
+        [0, 1].forEach(function(n) {
+          var token_name = n;
+          column_family.add_callback(cb_name, function(event_listeners) { 
+            callbackResults[cb_name].push({name:token_name, token: token});
+            if (event_listeners) event_listeners.success();
+          });
+        })
+      })
+    },
+
+    assert: function(cb_names, token) {
+      cb_names.forEach(function(cb_name) {
+        [0, 1].forEach(function(i) {
+          assert.equal(callbackResults[cb_name][i].name, i);
+        })
+      })
+    }    
+  }
 }
