@@ -129,7 +129,7 @@ function find_objects() {
       }                                              
     } else if (range) { // list of keyslices 
       object_result = [];
-      callback_counter = 0;
+      var callback_counter = 0;
       var non_empty_results = [];
       result.forEach(function(ks){
         var columns, timestamp;
@@ -164,7 +164,7 @@ function find_objects() {
       })
     } else { // hash of lists of columns or super columns
       object_result = {}
-      var callback_counters = 0;
+      var callback_counter = 0;
       var non_empty_results = [];
       for ( var k in result ) {
         var columns = result[k];
@@ -1066,6 +1066,7 @@ exports.initialize_keyspaces = function(ks_configs) {
             }
           }
         }  
+        var init_callbacks = 
         return mem_obj;
       }
       cf.find = func_for_column_family(ks.name, cf.name, find_objects)
