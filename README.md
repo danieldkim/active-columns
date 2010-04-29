@@ -585,18 +585,29 @@ Destroys {object}. Note: this only removes the columns represented in this
 {object} from Cassandra. To completely remove *all* columns of a row object from
 Cassandra use <code>{column family}.remove()</code>
 
-### Callbacks
+## Callbacks
 
 Since Cassandra data models tend to be highly denormalized, with cached copies
 of data stored in various places, and since "indices" are decoupled from the
 data they are indexing and must be updated manually when the source data
 changes, it would be handy to set up some code to automatically execute whenever
-you save or destroy an object. Active Columns allows you to configure
-<code>after\_save\_row</code> and <code>after\_destroy\_row</code> callbacks to
-be run whenever these events occur on a row object.
+you save or destroy an object. Active Columns allows you to configure various
+kinds of callbacks to executed when objects are initialized, saved, found, and
+destroyed.
 
-Callbacks are configured on the column family, in the <code>callbacks</code> property
-of the column family.  Thus, they can be configured like so:
+### Sequence chaining
+
+For each kind of callback event, a sequence (array) of functions can be
+specified. Though the functions are asynchronous, and should emit "success" and
+"error" events, the execution of the functions for a given callback event on a
+given object will be *chained* and executed in order. If any callback in a
+sequence emits an "error" event, the chain will be halted.
+
+### Configuration
+
+Callbacks are configured on the column family, in the
+<code>callbacks</code> property of the column family. Thus, they can be
+configured like so:
 
     ActiveColumns.initialize_keyspaces([
       { 
@@ -607,9 +618,11 @@ of the column family.  Thus, they can be configured like so:
           Users1: { 
             column_names: ["city", "state", "last_login", "sex"],
             callbacks: {
-              after_save_row: function(event_listeners, previous_version) {
-                sys.puts("after_save_row for Users1 called!");
-              }
+              after_save_row: [
+                function(event_listeners, previous_version) {
+                  sys.puts("after_save_row for Users1 called!");
+                }
+              ]
             }
           }
         }
@@ -619,13 +632,46 @@ of the column family.  Thus, they can be configured like so:
 or like so:
 
     var Users1 = get_column_family("ActiveColumnsTest", "Users1");
-    Users1.callbacks.after_save_row = function(event_listeners, previous_version) {
+    Users1.add_callback("after_save_row", function(event_listeners, previous_version) {
       sys.puts("after_save_row for Users1 called!");
     };
-    
-#### after\_save\_row (event\_listeners, previous\_version)
 
-This method is called after any row object in the column family is saved.
+### Note on callback recursion
+
+Callbacks are currently not recursive. i.e, if you have callbacks defined at the
+column level, they will not be executed when you new\_object/save/find/destroy
+at the super column or row level. If you want that to happen you should
+implement a callback at the higher level that implements some sort of iteration
+over the callbacks at the lower levels. Active Columns may handle this for you
+one day, but it's not a high priority.
+
+### Events
+
+#### after\_initialize\_{row|super_column|column} ()
+
+There are **2** instances in which these callbacks will be executed:
+
+* by <code>{column\_family}.new_object()</code> after an object is initialized 
+* by <code>{column\_family}.find()</code>, after an object is retrieved, and
+  after all *after\_find\_* callbacks have been called on the object.
+
+The initialized object can be accessed through the <code>this</code> variable.
+
+_**Note**: This is the one type of callback event that is executed
+**synchronously**._. Thus, these callbacks should not do any I/O and their usage
+should be reserved for simple things such as setting the prototype of an object,
+mixing in some methods, etc.
+
+    Users1.add_callback("after_initialize", function(event_listeners, previous_version) {
+      Object.defineProperty(this, "last_login_date", {
+        get function() { return convert_seconds_to_date(last_login); },
+        set function(value) { last_login = convert_date_to_seconds(value); }
+      })
+    }
+
+#### before\_save\_{row|super_column|column} (event\_listeners, previous\_version)
+
+These callbacks are called before any object in the column family is saved.
 *event\_listeners* is a hash containing functions to handle "success" and
 "error" conditions within the callback. *previous\_version* is a copy of this
 object corresponding to the previous saved version, before the the current save.
@@ -635,7 +681,33 @@ object corresponding to the previous saved version, before the the current save.
 not been saved before now. The saved/current version of the object can be
 accessed through the <code>this</code> variable.
 
-    Users1.callbacks.after_save_row = function(event_listeners, previous_version) {
+All callbacks in a sequence are executed in order. If any of them emit an
+"error" event, the chain will be halted, and the object will not be saved to the
+database. This makes *before\_save* callbacks a a good place to implement
+*validations*.
+
+    Users1.add_callback("before_save_row", function(event_listeners, previous_version) {
+      
+      if (!valid_state(this.state) ) {
+        event_listeners.error(this.state + " is not a valid state.")
+      } else
+        event_listeners.success();
+      }
+    }
+
+#### after\_save\_{row|super_column|column} (event\_listeners, previous\_version)
+
+This method is called after any object in the column family is saved.
+*event\_listeners* is a hash containing functions to handle "success" and
+"error" conditions within the callback. *previous\_version* is a copy of this
+object corresponding to the previous saved version, before the the current save.
+*previous\_version* corresponds to the version of this object retrieved by
+<code>find()</code> if you have not saved it since retrieving it.
+*previous\_version* will be <code>null</code> if this is a new object that has
+not been saved before now. The saved/current version of the object can be
+accessed through the <code>this</code> variable.
+
+    Users1.add_callback("after_save_row", function(event_listeners, previous_version) {
       // remove from StateUsers2 column family if new state is different
       if (previous_version.state != this.state) {
         StateUsers2.find(previous_version.state, previous_version._name, {
@@ -667,8 +739,32 @@ accessed through the <code>this</code> variable.
       });
       event_listeners.success();
     }
-    
-#### after\_destroy\_row (event\_listeners)
+
+
+#### after\_find\_{row|super_column|column} (event\_listeners)
+
+*after\_find\_* callbacks are called by <code>{column\_family}.find()</code>,
+after an object is retrieved, and before any *after\_initialize\_* callbacks
+have been called on the object. *event\_listeners* is a hash containing
+functions to handle "success" and "error" conditions within the callback, the
+found object can be accessed through the <code>this</code> variable.
+
+All callbacks in a sequence are executed in order. If any of them emit an
+"error" event, the chain will be halted, and an error event will be emitted by
+<code>find()</code>.
+
+If <code>find()</code> is returning a collection of objects, the sequences will
+executed **in parallel** for each object. Thus it is possible that an "error"
+event will be generated **multiple times** for a single <code>find()</code>
+call.
+
+_**Note**: After having implemented these callbacks, I'm finding hard to come up
+with a problem that they solve that couldn't be handled by the
+**after\_initialize\_** callbacks. What kind of callbacks involving asynchronous
+I/O would you need to do after a <code>find()</code>? Well, anyway, I
+implemented them and they're here._
+
+#### after\_destroy\_{row|super_column|object} (event\_listeners)
 
 This method is called after any row object in the column family is saved.
 *event\_listeners* is a hash containing functions to handle "success" and
@@ -676,7 +772,7 @@ This method is called after any row object in the column family is saved.
 through the <code>this</code> variable.
 
     // remove corresponding StateUsers2 object after we destroy a user object
-    Users1.callbacks.after_destroy_row = function(event_listeners, previous_version) {
+    Users1.add_callback("after_destroy_row", function(event_listeners, previous_version) {
       StateUsers2.find(this.state, this._name, {
         success: function(result) {
           result.destroy({
