@@ -227,7 +227,7 @@ function test_Users1(test_done) {
     bob.save({
       success: function(result) {
         logger.info("Saved bob successfully.");
-        clean_up_on_exception_for(find_alice_and_bob)();
+        clean_up_on_exception_for(find_alice_and_bob_with_range)();
       },
       error: clean_up_on_exception_for(function(mess) {
         assert.ok(false, "Error saving bob: " + mess);        
@@ -235,22 +235,38 @@ function test_Users1(test_done) {
     });
   }
   
-  function find_alice_and_bob() {
-    Users1.find({start_key:'', end_key:'', count: 100}, {
+  function find_alice_and_bob_with_range() {
+    find_alice_and_bob({start_key:'', end_key:'', count: 100}, function() {
+      logger.info("Found alice and bob with range successfully.");
+      clean_up_on_exception_for(find_alice_and_bob_with_keys)();
+    });
+  }
+  
+  function find_alice_and_bob_with_keys() {
+    find_alice_and_bob(['alice', 'bob'], function() {
+      logger.info("Found alice and bob with keys successfully.");
+      clean_up_on_exception_for(successful_destroy)();      
+    }); 
+  }
+  
+  function find_alice_and_bob(keyspec, next) {
+    Users1.find(keyspec, {
       success: clean_up_on_exception_for(function(results) {
-        assert.equal(2, results.length);
-        results.forEach(function(res) {
+        assert.equal(2, Object.keys(results).length);
+        _.forEach(results, function(res, k) {
           if (res.key == "alice") {
             alice = res;
+            if (isNaN(parseInt(k))) assert.equal("alice", k);
             assert_alice(alice, "Los Angeles");
           } else if (res.key == "bob") {
             bob = res;
+            if (isNaN(parseInt(k)))  assert.equal("bob", k);
             assert_bob();
           } else {
-            assert.ok(false, "Got an unexpected key from find with key range.")
+            assert.ok(false, "Got an unexpected key when finding alice and bob.")
           }
         })
-        clean_up_on_exception_for(successful_destroy)();
+        next();
       }),
       error: clean_up_on_exception_for(function(mess) {
         assert.ok(false, "Error finding bob and alice: " + mess);        
@@ -1634,7 +1650,6 @@ function test_auto_key_generation(test_done) {
        logger.info("Save for bob successfully returned a UUID.")
      }),
      error: clean_up_on_exception_for(function(mess) {
-       sys.puts("--- bob got an error :(")
        assert.ok(false, "Error trying to save bob: " + mess)
      })
     });    
@@ -1645,7 +1660,7 @@ function add_token_callbacks(column_family, cb_names, token) {
   cb_names.forEach(function(cb_name) {
     column_family.add_callback(cb_name, function(event_listeners) { 
       this[cb_name.match(/^(\w+?_\w+?)_/)[1] + "_token"] = token;
-      event_listeners.success();
+      if (event_listeners) event_listeners.success();
     });      
   })
 }
