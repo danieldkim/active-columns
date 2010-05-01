@@ -1,9 +1,8 @@
 var ActiveColumns = require('active-columns');
 
 exports.do_it = function() {
-  ActiveColumns.initialize_keyspaces([
-    { 
-      name: "ActiveColumnsTest", 
+  ActiveColumns.initialize_keyspaces({ 
+    ActiveColumnsTest: {
       cassandra_port: 10000,
       cassandra_host: "127.0.0.1", 
       column_families: {
@@ -16,6 +15,6 @@ exports.do_it = function() {
         StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
       }
     }
-  ]);
+  });
   
 };

@@ -943,171 +943,190 @@ function call_callbacks_sequentially(callbacks, o, finish, error_listener, previ
   }, previous_version)
 }
 
+function initialize_keyspaces(config) {
+  for (var keyspace_name in config) {
+    initialize_keyspace(keyspace_name, config[keyspace_name]);
+  }
+  return keyspaces;
+};
 
-exports.initialize_keyspaces = function(ks_configs) {
-  ks_configs.forEach(function(ks_config) { 
-    var ks = keyspaces[ks_config.name] = {}
-    ks.name = ks_config.name
-    ks.cassandra = require('cassandra-node-client').create(
-                     ks_config.cassandra_port, ks_config.cassandra_host, logger)
-    ks.column_families = {}
-    for (var cf_name in ks_config.column_families) {
-      var cf_config =  ks_config.column_families[cf_name];
-      var cf = ks.column_families[cf_name] = {
-        name: cf_name,
-        type: cf_config.type,
-        column_names: cf_config.column_names,
-        column_value_type: cf_config.column_value_type,
-        subcolumn_names: cf_config.subcolumn_names,
-        subcolumn_value_type: cf_config.subcolumn_value_type,
-        callbacks: cf_config.callbacks || {}
-      };
-      cf.add_callback = function(name, func) {
-        var cb_list = this.callbacks[name];
-        if (!cb_list) cb_list = this.callbacks[name] = [];
-        cb_list.push(func);         
-      }
-      cf.new_object = function() {
-        // logger.info("new_object - arguments: " + sys.inspect(arguments));
-
-        var key, super_column_name, column_name, init_cols;
-        var last_arg = arguments[arguments.length-1];
-        if (typeof last_arg == 'object' &&
-            (last_arg.constructor.name == 'Object' || last_arg.constructor.name == 'Array')) {
-          init_cols = last_arg;
-          handle_id_args.apply(this, Array.prototype.slice.call(arguments, 0, arguments.length-1));
-        } else {
-          handle_id_args.apply(this, Array.prototype.slice.call(arguments, 0, arguments.length));
-        }
-        function handle_id_args() {
-          key = arguments[0];
-          if (this.type == "Super") {
-            super_column_name = arguments[1];
-            column_name = arguments[2];            
-          } else {
-            column_name = arguments[1];
-          }
-        }
-                     
-        if ( column_name ) columns = '{}'
-        else columns = []
-        // logger.info("new_object - keyspace: " + ks_config.name + ",column_family:" + this.name + 
-        //          ",key:" + key + ",super_column_name:" + super_column_name + ",column_name:" + this.column_name +
-        //          ",init_cols:" + sys.inspect(init_cols) + ",columns:" + sys.inspect(columns));
-        var mem_obj = create_mem_object(ks_config.name, this.name, key, super_column_name,
-                          column_name, columns);
-                          
-        if (init_cols) { 
-          if (init_cols.constructor.name == 'Object') {                                                
-            var val_type;
-            // ugly but effective way to get the type of values in the hash
-            for (var k in init_cols) {
-              val_type = typeof init_cols[k]
-              break; 
-            }          
-            // can initialize with a hash if this is:
-            // - a column object, or
-            // - a row object with fixed column names or json column value type, or
-            // - a super column object with fixed subcolumn names or json column value type
-            if (column_name || val_type != 'object') {
-              for (var name in init_cols) {
-                mem_obj[name] = init_cols[name];
-              }
-            } else if ( !super_column_name && 
-                        (this.column_names || this.column_value_type == 'json') ) {
-              for (var name in init_cols) {
-                mem_obj[name] = this.new_object(key, name, init_cols[name]);
-              }
-            } else if ( super_column_name && 
-                        (this.subcolumn_names || this.subcolumn_value_type == 'json') ) {
-              for (var name in init_cols) {
-                mem_obj[name] = this.new_object(key, super_column_name, name, init_cols[name]);
-              }
-            } else {
-              throw "Cannot use a hash to initialize this object."
-            }
-          } else if (init_cols.constructor.name == 'Array') {
-            // can initialize with an array if this is:
-            // - not a column object, *and*
-            // - a row object with dynamic column names, or
-            // - a super column object with dynamic column names.
-            if (!column_name && !super_column_name && !this.column_names ) {
-              var that = this;
-              if (this.type == "Super") {
-                init_cols.forEach(function(col) {
-                  if (that.subcolumn_names) {
-                    mem_obj.columns.push(that.new_object(key, col._name, col));                                        
-                  } else {
-                    mem_obj.columns.push(that.new_object(key, col._name, col.columns));                    
-                  }
-                })
-              } else if (this.column_value_type == "json") {
-                init_cols.forEach(function(col) {
-                  mem_obj.columns.push(that.new_object(key, col._name, col));
-                })
-              } else {
-                init_cols.forEach(function(col) {                
-                  mem_obj.columns.push(col);
-                })
-              }
-            } else if (!column_name && super_column_name && !this.subcolumn_names) {
-              var that = this;
-              if (this.subcolumn_value_type == "json") {
-                init_cols.forEach(function(col) {
-                  mem_obj.columns.push(that.new_object(key, super_column_name, col._name, col));
-                })
-              } else {
-                init_cols.forEach(function(col) {                
-                  mem_obj.columns.push(col);
-                })
-              }
-            } else {
-              throw "Cannot use an array to initialize this object."              
-            }
-          }
-        }
-        
-        if (column_name) {
-          init_callbacks = this.callbacks.after_initialize_column || [];
-        } else if (super_column_name) {
-          init_callbacks = this.callbacks.after_initialize_super_column || [];
-        } else {
-          init_callbacks = this.callbacks.after_initialize_row || [];
-        }
-        init_callbacks.forEach(function(cb) {
-          cb.call(mem_obj);
-        })        
-        return mem_obj;
-      }
-      cf.find = func_for_column_family(ks.name, cf.name, find_objects)
-      cf.remove = function(key, event_listeners) {
-        remove_object(ks.name, this.name, key, null, null, event_listeners)
-      }
-    }
-    var request = ks.cassandra.create_request("describe_keyspace", {keyspace: ks.name});
-    request.addListener("success", function(result) {
-      for (var cf_name in result) {
-        var cf = keyspaces[ks.name].column_families[cf_name];
-        if (!cf) keyspaces[ks.name].column_families[cf_name] = cf = {};
-        cf.type = result[cf_name].Type;
-      }
-      logger.info("Initialized column family types with Cassandra keyspace description for " + ks.name);
-    });
-    request.addListener("error", function(mess) {
-      logger.error("Failed to get keyspace description from Cassandra for " + 
-                      ks.name + ":" + mess);
-    });
-    request.send();
-  })
+function initialize_keyspace(keyspace_name, config) {
+  var ks = keyspaces[keyspace_name] = {}
+  ks.name = keyspace_name
+  ks.cassandra = require('cassandra-node-client').create(
+                   config.cassandra_port, config.cassandra_host, logger)
+  ks.column_families = {}
+  for (var cf_name in config.column_families) {
+    initialize_column_family(ks.name, cf_name, 
+                             config.column_families[cf_name])
+  }
+  return ks;
 }
 
+function initialize_column_family(keyspace_name, column_family_name, config) {
+  var ks = keyspaces[keyspace_name];
+  if (!ks) ks = keyspaces[keyspace] = {};
+  var cf = ks.column_families[column_family_name] = {
+    name: column_family_name,
+    type: config.type,
+    column_names: config.column_names,
+    column_value_type: config.column_value_type,
+    subcolumn_names: config.subcolumn_names,
+    subcolumn_value_type: config.subcolumn_value_type,
+    callbacks: config.callbacks || {}
+  };
+
+  var request = ks.cassandra.create_request("describe_keyspace", {keyspace: ks.name});
+  request.addListener("success", function(result) {
+    for (var res_column_family_name in result) {
+      if (column_family_name != res_column_family_name) continue;
+      cf.type = result[column_family_name].Type;
+    }
+    logger.info("Initialized column family " + ks.name + "/" + column_family_name + 
+                  " with Cassandra keyspace description");
+  });
+  request.addListener("error", function(mess) {
+    logger.error("Failed to get keyspace description from Cassandra for " + 
+                    ks.name + ":" + mess);
+  });
+  request.send();
+  
+  cf.add_callback = function(name, func) {
+    var cb_list = this.callbacks[name];
+    if (!cb_list) cb_list = this.callbacks[name] = [];
+    cb_list.push(func);         
+  }
+  cf.new_object = function() {
+    // logger.info("new_object - arguments: " + sys.inspect(arguments));
+
+    var key, super_column_name, column_name, init_cols;
+    var last_arg = arguments[arguments.length-1];
+    if (typeof last_arg == 'object' &&
+        (last_arg.constructor.name == 'Object' || last_arg.constructor.name == 'Array')) {
+      init_cols = last_arg;
+      handle_id_args.apply(this, Array.prototype.slice.call(arguments, 0, arguments.length-1));
+    } else {
+      handle_id_args.apply(this, Array.prototype.slice.call(arguments, 0, arguments.length));
+    }
+    function handle_id_args() {
+      key = arguments[0];
+      if (this.type == "Super") {
+        super_column_name = arguments[1];
+        column_name = arguments[2];            
+      } else {
+        column_name = arguments[1];
+      }
+    }
+                 
+    if ( column_name ) columns = '{}'
+    else columns = []
+    // logger.info("new_object - keyspace: " + ks.name + ",column_family:" + this.name + 
+    //          ",key:" + key + ",super_column_name:" + super_column_name + ",column_name:" + this.column_name +
+    //          ",init_cols:" + sys.inspect(init_cols) + ",columns:" + sys.inspect(columns));
+    var mem_obj = create_mem_object(keyspace_name, column_family_name, key, super_column_name,
+                      column_name, columns);
+                      
+    if (init_cols) { 
+      if (init_cols.constructor.name == 'Object') {                                                
+        var val_type;
+        // ugly but effective way to get the type of values in the hash
+        for (var k in init_cols) {
+          val_type = typeof init_cols[k]
+          break; 
+        }          
+        // can initialize with a hash if this is:
+        // - a column object, or
+        // - a row object with fixed column names or json column value type, or
+        // - a super column object with fixed subcolumn names or json column value type
+        if (column_name || val_type != 'object') {
+          for (var name in init_cols) {
+            mem_obj[name] = init_cols[name];
+          }
+        } else if ( !super_column_name && 
+                    (this.column_names || this.column_value_type == 'json') ) {
+          for (var name in init_cols) {
+            mem_obj[name] = this.new_object(key, name, init_cols[name]);
+          }
+        } else if ( super_column_name && 
+                    (this.subcolumn_names || this.subcolumn_value_type == 'json') ) {
+          for (var name in init_cols) {
+            mem_obj[name] = this.new_object(key, super_column_name, name, init_cols[name]);
+          }
+        } else {
+          throw "Cannot use a hash to initialize this object."
+        }
+      } else if (init_cols.constructor.name == 'Array') {
+        // can initialize with an array if this is:
+        // - not a column object, *and*
+        // - a row object with dynamic column names, or
+        // - a super column object with dynamic column names.
+        if (!column_name && !super_column_name && !this.column_names ) {
+          var that = this;
+          if (this.type == "Super") {
+            init_cols.forEach(function(col) {
+              if (that.subcolumn_names) {
+                mem_obj.columns.push(that.new_object(key, col._name, col));                                        
+              } else {
+                mem_obj.columns.push(that.new_object(key, col._name, col.columns));                    
+              }
+            })
+          } else if (this.column_value_type == "json") {
+            init_cols.forEach(function(col) {
+              mem_obj.columns.push(that.new_object(key, col._name, col));
+            })
+          } else {
+            init_cols.forEach(function(col) {                
+              mem_obj.columns.push(col);
+            })
+          }
+        } else if (!column_name && super_column_name && !this.subcolumn_names) {
+          var that = this;
+          if (this.subcolumn_value_type == "json") {
+            init_cols.forEach(function(col) {
+              mem_obj.columns.push(that.new_object(key, super_column_name, col._name, col));
+            })
+          } else {
+            init_cols.forEach(function(col) {                
+              mem_obj.columns.push(col);
+            })
+          }
+        } else {
+          throw "Cannot use an array to initialize this object."              
+        }
+      }
+    }
+    
+    if (column_name) {
+      init_callbacks = this.callbacks.after_initialize_column || [];
+    } else if (super_column_name) {
+      init_callbacks = this.callbacks.after_initialize_super_column || [];
+    } else {
+      init_callbacks = this.callbacks.after_initialize_row || [];
+    }
+    init_callbacks.forEach(function(cb) {
+      cb.call(mem_obj);
+    })        
+    return mem_obj;
+  }
+  cf.find = func_for_column_family(ks.name, cf.name, find_objects)
+  cf.remove = function(key, event_listeners) {
+    remove_object(ks.name, this.name, key, null, null, event_listeners)
+  }
+  
+  return cf;
+}
+
+exports.initialize_keyspaces = initialize_keyspaces;
+exports.initialize_keyspace = initialize_keyspace;
+exports.initialize_column_family = initialize_column_family;
+exports.keyspaces = keyspaces;
 
 exports.set_logger = function(a_logger) {
   logger = a_logger;
 }
 
-exports.get_column_family = get_column_family = function(keyspace, column_family) {
-  return keyspaces[keyspace].column_families[column_family];
+exports.get_column_family = get_column_family = function(keyspace_name, column_family) {
+  return keyspaces[keyspace_name].column_families[column_family];
 }
 
 exports.ConsistencyLevel = ConsistencyLevel = {

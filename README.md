@@ -392,9 +392,8 @@ Include Active Columns in your program like so:
 Then the first thing you need to do is initialize your keyspaces. This is how
 keyspace for the object model examples above is initialized:
 
-    ActiveColumns.initialize_keyspaces([
-      { 
-        name: "ActiveColumnsTest", 
+    ActiveColumns.initialize_keyspaces({ 
+      ActiveColumnsTest: {
         cassandra_port: 10000,
         cassandra_host: "127.0.0.1", 
         column_families: {
@@ -407,7 +406,7 @@ keyspace for the object model examples above is initialized:
           StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
         }
       }
-    ]);
+    });
 
 **cassandra\_port** and **cassandra\_host** should point to your Cassandra-Node
 Bridge proxy server, not directly at your Cassandra server.
@@ -422,6 +421,30 @@ Fixed column names can be specified at the super column or column level with the
 
 Specify a **column\_value\_type** of "json" if you want column objects instead
 of column primitives.
+
+If you want to just initialize a single keyspace you can use the
+<code>initialize\_keyspace</code> method:
+
+    ActiveColumns.initialize_keyspace("ActiveColumnsTest", {
+      cassandra_port: 10000,
+      cassandra_host: "127.0.0.1", 
+      column_families: {
+        Users1: { 
+          column_names: ["city", "state", "last_login", "sex"],
+        },
+        Users2: {},
+        StateUsers1: { type: "Super", subcolumn_names:  ["city", "sex"] },
+        StateUsers2: { column_value_type: "json" },
+        StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
+      }
+    });
+
+Finally, if you just want to initialize a single column family, there's
+<code>initialize\_column\_family</code>:
+
+    ActiveColumns.initialize_column_family("ActiveColumnsTest", "Users1", {
+      column_names: ["city", "state", "last_login", "sex"]
+    });
 
 ### Properties
 
@@ -442,9 +465,65 @@ Returns the key that this {object} lives under.
 
 ### Methods
 
-#### {ActiveColumns}.get\_column\_family( keyspace, column_family )
+#### {ActiveColumns}.initialize\_keyspaces( configs )
 
-Gets the specified column family from {ActiveColumns}.  e.g.:
+Initializes all of the keyspaces in {ActiveColumns} with the configuration
+specified in the *config* parameter. e.g.:
+
+    ActiveColumns.initialize_keyspaces({ 
+      ActiveColumnsTest: {
+        cassandra_port: 10000,
+        cassandra_host: "127.0.0.1", 
+        column_families: {
+          Users1: { 
+            column_names: ["city", "state", "last_login", "sex"],
+          },
+          Users2: {},
+          StateUsers1: { type: "Super", subcolumn_names:  ["city", "sex"] },
+          StateUsers2: { column_value_type: "json" },
+          StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
+        }
+      }
+    });
+
+#### {ActiveColumns}.initialize\_keyspace( keyspace\_name, config )
+
+Initializes the specified keyspace in {ActiveColumns} with the configuration
+specified in the *config* parameter. e.g.:
+
+    ActiveColumns.initialize_keyspace("ActiveColumnsTest", {
+      cassandra_port: 10000,
+      cassandra_host: "127.0.0.1", 
+      column_families: {
+        Users1: { 
+          column_names: ["city", "state", "last_login", "sex"],
+        },
+        Users2: {},
+        StateUsers1: { type: "Super", subcolumn_names:  ["city", "sex"] },
+        StateUsers2: { column_value_type: "json" },
+        StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
+      }
+    });
+
+#### {ActiveColumns}.initialize\_keyspace( keyspace\_name, column\_family\_name, config )
+
+Initializes the specified column family in {ActiveColumns} with the
+configuration specified in the *config* parameter. e.g.:
+
+    ActiveColumns.initialize_column_family("ActiveColumnsTest", "Users1", {
+      column_names: ["city", "state", "last_login", "sex"],
+      callbacks: {
+        after_save_row: [
+          function(event_listeners, previous_version) {
+            sys.puts("after_save_row for Users1 called!");
+          }
+        ]
+      }      
+    });
+
+#### {ActiveColumns}.get\_column\_family( keyspace\_name, column\_family )
+
+Gets the specified column family from {ActiveColumns}. e.g.:
 
     var Users1 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users1");
 
@@ -547,6 +626,14 @@ emit a **"not\_found"** event. Add a "not\_found" handler to the
 **Completely** removes the row object with given *key*, i.e. removes the entire
 row, all columns, from Cassandra.
 
+#### {column_family}.add_callback( name, func ) 
+
+Adds the function *func* to the sequence of *name* callbacks.
+
+    Users1.add_callback("after_save_row", function(event_listeners, previous_version) {
+      sys.puts("after_save_row for Users1 called!");
+    };
+
 #### {object}.get\_super\_column\_name()
 
 Returns the name of the super column that this {object} lives under. Only
@@ -608,9 +695,8 @@ Callbacks are configured on the column family, in the
 <code>callbacks</code> property of the column family. Thus, they can be
 configured like so:
 
-    ActiveColumns.initialize_keyspaces([
-      { 
-        name: "ActiveColumnsTest", 
+    ActiveColumns.initialize_keyspaces({ 
+      ActiveColumnsTest: {
         cassandra_port: 10000,
         cassandra_host: "127.0.0.1", 
         column_families: {
@@ -626,8 +712,8 @@ configured like so:
           }
         }
       }
-    ])
-
+    });
+    
 or like so:
 
     var Users1 = get_column_family("ActiveColumnsTest", "Users1");
