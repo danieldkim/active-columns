@@ -56,7 +56,7 @@ function find_objects() {
     } else if (!super_column_name && cf.column_names) {
       predicate = {column_names:cf.column_names}
     } else {
-      throw "Must specify a column name or predicate."
+      throw Error("Must specify a column name or predicate.");
     }
   } else if (typeof column_name_or_predicate == 'object') {
     predicate = column_name_or_predicate;
@@ -554,7 +554,7 @@ function destroy_column_object(keyspace, column_family, key, super_column_name, 
 }
 
 function mutation_for_destroy_column_object(super_column_name, o) {
-  if (!o.timestamp) throw "Cannot destroy a column object without a timestamp!";
+  if (!o.timestamp) throw Error("Cannot destroy a column object without a timestamp!");
   var mut = {timestamp: o.timestamp, predicate: {column_names: [o._name]}}
   if (super_column_name) mut.super_column = super_column_name;
   return mut;
@@ -569,7 +569,7 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
   if ( key ) {
     now_have_key();
   } else if (!auto_generate_ids) {
-    throw "Cannot save/destroy an object without a key."
+    throw Error("Cannot save/destroy an object without a key.");
   } else {
     var get_uuids = cassandra.create_request("get_uuids")
     get_uuids.addListener("success", function(result) {
@@ -589,7 +589,7 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
     if ( o.id ) {
       now_have_id();
     } else if (!auto_generate_ids) {
-      throw "Cannot save/destroy an object without a _name."
+      throw Error("Cannot save/destroy an object without a _name.");
     } else {
       var get_uuids = cassandra.create_request("get_uuids")
       get_uuids.addListener("success", function(result) {
@@ -628,7 +628,7 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
     var mut_map = {};
     mut_map[key] = {};
     var mutations = mut_map[key][column_family] = mutations_func();
-    if (!mutations || mutations.length < 1) throw "Nothing to save/destroy!";
+    if (!mutations || mutations.length < 1) throw Error("Nothing to save/destroy!");
     var mutate_request = cassandra.create_request("batch_mutate",
       {keyspace: keyspace, mutation_map: mut_map, 
        consistency_level: ConsistencyLevel.ONE})
@@ -1053,7 +1053,7 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
             mem_obj[name] = this.new_object(key, super_column_name, name, init_cols[name]);
           }
         } else {
-          throw "Cannot use a hash to initialize this object."
+          throw Error("Cannot use a hash to initialize this object.");
         }
       } else if (init_cols.constructor.name == 'Array') {
         // can initialize with an array if this is:
@@ -1091,7 +1091,7 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
             })
           }
         } else {
-          throw "Cannot use an array to initialize this object."              
+          throw Error("Cannot use an array to initialize this object.");
         }
       }
     }
