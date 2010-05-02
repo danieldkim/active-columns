@@ -719,7 +719,7 @@ or like so:
     var Users1 = get_column_family("ActiveColumnsTest", "Users1");
     Users1.add_callback("after_save_row", function(event_listeners, previous_version) {
       sys.puts("after_save_row for Users1 called!");
-    };
+    });
 
 ### Note on callback recursion
 
@@ -749,10 +749,10 @@ mixing in some methods, etc.
 
     Users1.add_callback("after_initialize", function(event_listeners, previous_version) {
       Object.defineProperty(this, "last_login_date", {
-        get function() { return convert_seconds_to_date(last_login); },
-        set function(value) { last_login = convert_date_to_seconds(value); }
+        get: function() { return convert_seconds_to_date(last_login); },
+        set: function(value) { last_login = convert_date_to_seconds(value); }
       })
-    }
+    });
 
 #### before\_save\_{row|super_column|column} (event\_listeners, previous\_version)
 
@@ -778,7 +778,7 @@ database. This makes *before\_save* callbacks a a good place to implement
       } else
         event_listeners.success();
       }
-    }
+    });
 
 #### after\_save\_{row|super_column|column} (event\_listeners, previous\_version)
 
@@ -823,7 +823,7 @@ accessed through the <code>this</code> variable.
         }
       });
       event_listeners.success();
-    }
+    });
 
 
 #### after\_find\_{row|super_column|column} (event\_listeners)
@@ -875,7 +875,7 @@ through the <code>this</code> variable.
         }
       })
       event_listeners.success();
-    }
+    });
 
 ## Future Work
 
