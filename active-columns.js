@@ -965,7 +965,7 @@ function initialize_keyspace(keyspace_name, config) {
 
 function initialize_column_family(keyspace_name, column_family_name, config) {
   var ks = keyspaces[keyspace_name];
-  if (!ks) ks = keyspaces[keyspace] = {};
+  if (!ks) throw Error("No keyspace with name " + keyspace_name);
   var cf = ks.column_families[column_family_name] = {
     name: column_family_name,
     type: config.type,
