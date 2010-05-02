@@ -23,24 +23,24 @@ for (var test_name in sync_tests) {
 
 // setTimeout(function() {
 test_helpers.run_async_tests_sequentially([
-  // ["Test Users1 column family", test_Users1 ],
-  // ["Test Users2 column family", test_Users2 ],
-  // ["Test StateUsers1 column family, user level",
-  //   test_StateUsers1_user_level],
-  // ["Test StateUsers1 column family, state level",
-  //   test_StateUsers1_state_level],
-  // ["Test StateUsers2 column family, user level", 
-  //   test_StateUsers2_user_level ],
-  // ["Test StateUsers2 column family, state level", 
-  //   test_StateUsers2_state_level ],
-  // ["Test StateLastLoginUsers column family, user level", 
-  //   test_StateLastLoginUsers_user_level],
+  ["Test Users1 column family", test_Users1 ],
+  ["Test Users2 column family", test_Users2 ],
+  ["Test StateUsers1 column family, user level",
+    test_StateUsers1_user_level],
+  ["Test StateUsers1 column family, state level",
+    test_StateUsers1_state_level],
+  ["Test StateUsers2 column family, user level", 
+    test_StateUsers2_user_level ],
+  ["Test StateUsers2 column family, state level", 
+    test_StateUsers2_state_level ],
+  ["Test StateLastLoginUsers column family, user level", 
+    test_StateLastLoginUsers_user_level],
   ["Test StateLastLoginUsers column family, last login level level", 
     test_StateLastLoginUsers_last_login_level],
-  // ["Test StateLastLoginUsers column family, state level", 
-  //   test_StateLastLoginUsers_state_level],
-  // ["Test auto key generation", 
-  //   test_auto_key_generation],
+  ["Test StateLastLoginUsers column family, state level", 
+    test_StateLastLoginUsers_state_level],
+  ["Test auto key generation", 
+    test_auto_key_generation],
   // ["Test auto super column name generation", 
   //   test_auto_super_column_name_generation],
   // ["Test auto column name generation", 
@@ -1201,7 +1201,7 @@ function test_StateLastLoginUsers_last_login_level(test_done) {
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
-    StateLastLoginUsers.find("NY", 1271184168, 
+    StateLastLoginUsers.find("NY", 1271184168, column_predicate,
       unsuccessful_find_listeners("ny_1271184168", not_found_action))    
   }
   
@@ -1407,7 +1407,8 @@ function test_StateLastLoginUsers_state_level(test_done) {
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
-    StateLastLoginUsers.find("NY", unsuccessful_find_listeners("ny", not_found_action))    
+    StateLastLoginUsers.find("NY", column_predicate, 
+      unsuccessful_find_listeners("ny", not_found_action))    
   }
   
   function unsuccessful_destroy() {
