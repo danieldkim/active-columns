@@ -794,7 +794,7 @@ accessed through the <code>this</code> variable.
 
     Users1.add_callback("after_save_row", function(event_listeners, previous_version) {
       // remove from StateUsers2 column family if new state is different
-      if (previous_version.state != this.state) {
+      if (previous_version && previous_version.state != this.state) {
         StateUsers2.find(previous_version.state, previous_version._name, {
           success: function(result) {
             result.destroy({
