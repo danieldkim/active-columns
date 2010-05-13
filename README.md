@@ -371,9 +371,9 @@ We can think of what a query does as finding object nodes (the elements
 represented by {..}) within this tree -- including the root -- with a subset of
 that node's children. For example, if I wanted to find all the users in NY with
 a birthday between x and y, I would get back a list of column objects -- the
-ones with _names like "alice" and "chuck" above. If I wanted to find all the
+ones with \_names like "alice" and "chuck" above. If I wanted to find all the
 users in NY with a birthday on a particular day, I would retrieve the super
-column object -- e.g. the super column object with the _name 1271184169 above.
+column object -- e.g. the super column object with the \_name 1271184169 above.
 
 ## Usage
 
