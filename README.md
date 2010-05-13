@@ -461,7 +461,8 @@ and want a consistent way to refer to the "id" of the object.
 
 #### {object}.key
 
-Returns the key that this {object} lives under.
+Returns the key that this {object} lives under (applies to all three types of
+objects).
 
 ### Methods
 
@@ -535,9 +536,9 @@ Creates a new Active Columns object within {column family}.
 or an array in the final position will be taken as the *init\_cols*, otherwise
 *init_cols* is undefined. Any string params before *init\_cols* will be taken as
 the *key*, *super\_column\_name*, and *column\_name*, in that order, of the
-object to be created. If none of these identifiers are provided, a column family
-object with no key will be created. Active Columns will generate a UUID key for
-this object when saving it.
+object to be created. If none of these identifiers are provided, a row object in
+{column family} with no key will be created. Active Columns will generate a UUID
+key for this object when saving it.
 
 *init\_cols* will be used to initialize the object created. it's root form --
 hash or array -- must correspond to that required for the object being created.
@@ -678,8 +679,8 @@ of data stored in various places, and since "indices" are decoupled from the
 data they are indexing and must be updated manually when the source data
 changes, it would be handy to set up some code to automatically execute whenever
 you save or destroy an object. Active Columns allows you to configure various
-kinds of callbacks to executed when objects are initialized, saved, found, and
-destroyed.
+kinds of callbacks to be executed when objects are initialized, saved, found,
+and destroyed.
 
 ### Sequence chaining
 
