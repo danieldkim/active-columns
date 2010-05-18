@@ -144,6 +144,7 @@ function find_objects() {
           callback_counter++;
         }
       });
+      if (non_empty_results.length < 1) object_result_ready();
       non_empty_results.forEach(function(res){
         var o = create_mem_object(keyspace, column_family, res.key, 
           super_column_name, column_name, res.columns, res.timestamp)
@@ -177,6 +178,7 @@ function find_objects() {
           non_empty_results[k] = {columns:columns, timestamp:timestamp};
         }
       }
+      if (non_empty_results.length < 1) object_result_ready();
       for ( var k in non_empty_results ) {
         var res = non_empty_results[k];
         object_result[k] = create_mem_object(keyspace, column_family, k, 
