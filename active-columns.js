@@ -166,7 +166,7 @@ function find_objects() {
     } else { // hash of lists of columns or super columns
       object_result = {}
       var callback_counter = 0;
-      var non_empty_results = [];
+      var non_empty_results = {};
       for ( var k in result ) {
         var columns = result[k];
         if (column_name) {
@@ -178,7 +178,7 @@ function find_objects() {
           non_empty_results[k] = {columns:columns, timestamp:timestamp};
         }
       }
-      if (non_empty_results.length < 1) object_result_ready();
+      if (Object.keys(non_empty_results).length < 1) object_result_ready();
       for ( var k in non_empty_results ) {
         var res = non_empty_results[k];
         object_result[k] = create_mem_object(keyspace, column_family, k, 
