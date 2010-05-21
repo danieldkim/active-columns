@@ -66,9 +66,9 @@ function find_objects() {
   }
 
   // logger.debug("find_objects - keyspace: " + keyspace + ",column_family:" + column_family + 
-  //              ",key:" + key + ",keys:" + sys.inspect(keys) + ",range:" + sys.inspect(range) +  
+  //              ",key:" + key + ",keys:" + sys.inspect(keys, false, null) + ",range:" + sys.inspect(range, false, null) +  
   //              ",super_column_name:" + super_column_name + ",column_name:" + column_name + 
-  //              ",predicate:" + sys.inspect(predicate));
+  //              ",predicate:" + sys.inspect(predicate, false, null));
   var cassandra = keyspaces[keyspace].cassandra,
       column_parent = {column_family: column_family},
       get_request;
@@ -203,7 +203,7 @@ function find_objects() {
       if (object_result) {
         if (logger.isDebugEnabled()) {
           logger.debug("Found object(s) in " + keyspace + "." + column_family + 
-                       ": " + sys.inspect(object_result));
+                       ": " + sys.inspect(object_result, false, null));
         }
         if (event_listeners.success) event_listeners.success(object_result);
       } else {
@@ -564,7 +564,7 @@ function mutation_for_destroy_column_object(super_column_name, o) {
 
 function save_object(keyspace, column_family, key, o, auto_generate_ids, event_listeners, mutations_func, timestamp_func, update_last_saved) {
   // logger.debug("save_object - keyspace: " + keyspace + ",column_family:" + column_family + 
-  //          ",key:" + key + ",o:" + sys.inspect(o));
+  //          ",key:" + key + ",o:" + sys.inspect(o, false, null));
            
   var cassandra = keyspaces[keyspace].cassandra;
 
@@ -678,19 +678,19 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
          ||
          (!super_column_name && column_value_type && column_value_type == 'json')) {
       if ( logger.isDebugEnabled() )
-        logger.debug("Creating json value " + sys.inspect(columns) + " under " + path);
+        logger.debug("Creating json value " + sys.inspect(columns, false, null) + " under " + path);
       o = eval('(' + columns + ')')
       o.timestamp = timestamp;
     } else {
       if ( logger.isDebugEnabled() )
-        logger.debug("Returning value " + sys.inspect(columns) + " under " + path);
+        logger.debug("Returning value " + sys.inspect(columns, false, null) + " under " + path);
       o = columns;
     }      
   } else if ( super_column_name ) { // object under a super column
     if ( cf.subcolumn_names ) {
       if ( logger.isDebugEnabled() ) {
         logger.debug("Creating super column object with subcolumn_names " + 
-                     sys.inspect(cf.subcolumn_names) + " under " + path);
+                     sys.inspect(cf.subcolumn_names, false, null) + " under " + path);
       }
       o.timestamps = {}
       columns.forEach(function(col) {
@@ -718,7 +718,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
       if ( cf.column_names ) {
         if ( logger.isDebugEnabled() ) {
           logger.debug("Creating row object with super column names " +
-            sys.inspect(cf.column_names) + " under " + path);
+            sys.inspect(cf.column_names, false, null) + " under " + path);
         }
         columns.forEach(function(col) {
           o[col.name] = create_mem_object(keyspace, column_family, key, col.name, 
@@ -740,7 +740,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
         o.timestamps = {}
         if ( logger.isDebugEnabled() ) {
           logger.debug("Creating row object with column names " +
-            sys.inspect(cf.column_names) + " under " + path);
+            sys.inspect(cf.column_names, false, null) + " under " + path);
         }        
         columns.forEach(function(col) {
           o[col.name] = create_mem_object(keyspace, column_family, key, null, 
@@ -999,7 +999,7 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
     cb_list.push(func);         
   }
   cf.new_object = function() {
-    // logger.info("new_object - arguments: " + sys.inspect(arguments));
+    // logger.info("new_object - arguments: " + sys.inspect(arguments, false, null));
 
     var key, super_column_name, column_name, init_cols;
     var last_arg = arguments[arguments.length-1];
@@ -1024,7 +1024,7 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
     else columns = []
     // logger.info("new_object - keyspace: " + ks.name + ",column_family:" + this.name + 
     //          ",key:" + key + ",super_column_name:" + super_column_name + ",column_name:" + this.column_name +
-    //          ",init_cols:" + sys.inspect(init_cols) + ",columns:" + sys.inspect(columns));
+    //          ",init_cols:" + sys.inspect(init_cols, false, null) + ",columns:" + sys.inspect(columns, false, null));
     var mem_obj = create_mem_object(keyspace_name, column_family_name, key, super_column_name,
                       column_name, columns);
                       
