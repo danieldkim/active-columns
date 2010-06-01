@@ -775,7 +775,8 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   
   function row_key() { return key; }
   function this_name() { return this._name; }
-  o._last_saved = null;
+  if (typeof o == 'object')
+    Object.defineProperty(o, "_last_saved", {value: null, writable: true});
   o.update_last_saved = function() {
 
     function copy(thing) {
