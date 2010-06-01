@@ -861,7 +861,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     o.key = key;
     if (!o.columns && !cf.column_names) o.columns = [];      
     if (!o.timestamps && cf.column_names) o.timestamps = {};
-    Object.defineProperty(o, "id", { get: row_key, enumerable: true });
+    Object.defineProperty(o, "id", { get: function() { return this.key; }, enumerable: true });
     Object.defineProperty(o, "after_initialize_callbacks", { 
       get: function() { return cf.callbacks.after_initialize_row;} 
     });
