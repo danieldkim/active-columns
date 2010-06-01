@@ -692,7 +692,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
         logger.debug("Creating super column object with subcolumn_names " + 
                      sys.inspect(cf.subcolumn_names, false, null) + " under " + path);
       }
-      o.timestamps = {}
+      Object.defineProperty(o, "timestamps", {value: {}})
       columns.forEach(function(col) {
         o[col.name] = create_mem_object(keyspace, column_family, key, 
           super_column_name, col.name, col.value, col.timestamp)
@@ -737,7 +737,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
       }
     } else {
       if ( cf.column_names ) {
-        o.timestamps = {}
+        Object.defineProperty(o, "timestamps", {value: {}})
         if ( logger.isDebugEnabled() ) {
           logger.debug("Creating row object with column names " +
             sys.inspect(cf.column_names, false, null) + " under " + path);
@@ -849,7 +849,8 @@ function activate_object(keyspace, column_family, key, super_column_name, column
       get: function() { return cf.callbacks.before_save_super_column;} 
     });
     if (!o.columns && !cf.subcolumn_names) o.columns = [];
-    if (!o.timestamps && cf.subcolumn_names) o.timestamps = {};
+    if (!o.timestamps && cf.subcolumn_names) 
+      Object.defineProperty(o, "timestamps", {value: {}});
     o.save = function(event_listeners, delete_missing_columns) {
       save_super_column_object(keyspace, column_family, key, this, 
         event_listeners, delete_missing_columns);
@@ -860,7 +861,8 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   } else {
     o.key = key;
     if (!o.columns && !cf.column_names) o.columns = [];      
-    if (!o.timestamps && cf.column_names) o.timestamps = {};
+    if (!o.timestamps && cf.column_names) 
+      Object.defineProperty(o, "timestamps", {value: {}});
     Object.defineProperty(o, "id", { get: function() { return this.key; }, enumerable: true });
     Object.defineProperty(o, "after_initialize_callbacks", { 
       get: function() { return cf.callbacks.after_initialize_row;} 
