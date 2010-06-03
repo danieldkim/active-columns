@@ -1610,12 +1610,12 @@ function test_column_value_types(test_done) {
    {name: "date_col", value: date_val},
    {name: "number_col", value: number_val}
   ]);
-  _test_column_value_types_static(ColumnValueTypeTest, o, function() {
-    var date_col = _.detect(o.columns, function(col) {return col.name == "date_col";});
+  _test_column_value_types_static(ColumnValueTypeTest, o, function(result) {
+    var date_col = _.detect(result.columns, function(col) {return col.name == "date_col";});
     assert.ok(date_col.value.valueOf, 
               "Doesn't look like a date object, no valueOf() method");
     assert.equal(date_val.valueOf(), date_col.value.valueOf());
-    var number_col = _.detect(o.columns, function(col) {return col.name == "number_col";});
+    var number_col = _.detect(result.columns, function(col) {return col.name == "number_col";});
     assert.equal("number", typeof number_col.value);
     assert.equal(number_val, number_col.value);    
   }, test_done);

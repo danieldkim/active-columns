@@ -14,11 +14,11 @@ exports.do_it = function() {
         StateUsers2: { column_value_type: "json" },
         StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" },
         ColumnValueTypeTest: {
-          column_value_types: {date_col: "date", number_col: "number"}
+          column_value_types: {date_col: "date", number_col: "number", json_col: "json"}
         },
         ColumnValueTypeTestStatic: {
-          column_names: ["date_col", "number_col"],
-          column_value_types: {date_col: "date", number_col: "number"}
+          column_names: ["date_col", "number_col", "json_col"],
+          column_value_types: {date_col: "date", number_col: "number", json_col: "json"}
         }
       }
     }

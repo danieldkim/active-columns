@@ -25,7 +25,7 @@ function find_objects() {
   var cf = get_column_family(keyspace, column_family)
   event_listeners = arguments[arguments.length-1];
   var penultimate_arg = arguments[arguments.length-2];
-  if (typeof penultimate_arg == 'object' && arguments.length > 4) {
+  if (penultimate_arg.constructor.name == 'Object' && arguments.length > 4) {
     column_name_or_predicate = penultimate_arg;
     handle_id_args.apply(this, Array.prototype.slice.call(arguments, 2, arguments.length-2));
   } else {
@@ -58,7 +58,7 @@ function find_objects() {
     } else {
       throw Error("Must specify a column name or predicate.");
     }
-  } else if (typeof column_name_or_predicate == 'object') {
+  } else if (column_name_or_predicate.constructor.name == 'Object') {
     predicate = column_name_or_predicate;
   } else {
     column_name = column_name_or_predicate;
@@ -716,7 +716,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
       columns.forEach(function(col) {
         var value = create_mem_object(keyspace, column_family, key, 
                         super_column_name, col.name, col.value, col.timestamp)
-        if (typeof value == 'object') {
+        if (value.constructor.name == 'Object') {
           o.columns.push(value);
         } else {
           o.columns.push({name: col.name, value: value});          
@@ -765,7 +765,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
         columns.forEach(function(col) {
           value = create_mem_object(keyspace, column_family, key, null, 
                     col.name, col.value, col.timestamp)
-          if (typeof value == 'object') {
+          if (value.constructor.name == 'Object') {
             o.columns.push(value);
           } else {
             o.columns.push({name: col.name, value: value, timestamp: col.timestamp});
@@ -785,7 +785,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   
   function row_key() { return key; }
   function this_name() { return this._name; }
-  if (typeof o == 'object')
+  if (o.constructor.name == 'Object')
     Object.defineProperty(o, "_last_saved", {value: null, writable: true});
   o.update_last_saved = function() {
 
@@ -831,7 +831,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   }    
   var cf = get_column_family(keyspace, column_family);
   if (column_name) {
-    if (typeof o == 'object') {
+    if (o.constructor.name == 'Object') {
       o._name = column_name;
       Object.defineProperty(o, "id", { get: this_name, enumerable: true });
       Object.defineProperty(o, "key", { get: row_key, enumerable: true });
