@@ -697,14 +697,13 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
   if ( logger.isDebugEnabled() ) 
     var path = path_s(keyspace, column_family, key, super_column_name, column_name);
   var cf = get_column_family(keyspace, column_family);
+  var do_activate = true;
   if (column_name) { // value under a column name
     var subcolumn_value_type = cf.subcolumn_value_type
     var column_value_type = cf.column_value_type
-    subcolumn_value_type = subcolumn_value_type
-    if (cf.column_value_types && cf.column_value_types[column_name]) {
-      subcolumn_value_type = subcolumn_value_type || cf.column_value_types[column_name]
-      column_value_type = column_value_type || cf.column_value_types[column_name]
-    }
+    var column_value_type_for_column;
+    if (cf.column_value_types) 
+      column_value_type_for_column = cf.column_value_types[column_name];
     if ((super_column_name && subcolumn_value_type && subcolumn_value_type  == 'json')
          ||
          (!super_column_name && column_value_type && column_value_type == 'json')) {
@@ -712,18 +711,26 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
         logger.debug("Creating json value " + sys.inspect(columns, false, null) + " under " + path);
       o = eval('(' + columns + ')')
       o.timestamp = timestamp;
-    } else if (column_value_type == 'date') {
+    } else if (column_value_type_for_column == 'json') {
+      if ( logger.isDebugEnabled() )
+        logger.debug("Creating json value " + sys.inspect(columns, false, null) + " under " + path);
+      o = eval('(' + columns + ')');
+      do_activate = false;
+    } else if (column_value_type_for_column == 'date') {
       o = new Date(columns);
       if ( logger.isDebugEnabled() )
         logger.debug("Returning date " + o + " under " + path);
-    } else if (column_value_type == 'number') {
+      do_activate = false;
+    } else if (column_value_type_for_column == 'number') {
       o = +columns;
       if ( logger.isDebugEnabled() )
         logger.debug("Returning number " + o + " under " + path);
+      do_activate = false;
     } else {
       if ( logger.isDebugEnabled() )
         logger.debug("Returning value " + sys.inspect(columns, false, null) + " under " + path);
       o = columns;
+      do_activate = false;
     }      
   } else if ( super_column_name ) { // object under a super column
     if ( cf.subcolumn_names ) {
@@ -811,8 +818,9 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
     }
   }
   
-  activate_object(keyspace, column_family, key, super_column_name, 
-                        column_name, o);
+  if (do_activate) 
+    activate_object(keyspace, column_family, key, super_column_name, column_name, o);
+
   return o;
 }
 
@@ -821,54 +829,53 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   
   function row_key() { return key; }
   function this_name() { return this._name; }
-  if (o.constructor.name == 'Object') {
+  // if (o.constructor.name == 'Object')
     Object.defineProperty(o, "_last_saved", {value: null, writable: true});
-    o.update_last_saved = function() {
+  o.update_last_saved = function() {
 
-      function copy(thing) {
-        var a_copy;
-        if (typeof thing == "object") {
-          a_copy = {}
-          for (var k in thing) {
-            a_copy[k] = copy(thing[k]);
-          }
-        } else {
-          a_copy = thing;
+    function copy(thing) {
+      var a_copy;
+      if (typeof thing == "object") {
+        a_copy = {}
+        for (var k in thing) {
+          a_copy[k] = copy(thing[k]);
         }
-        return a_copy;
+      } else {
+        a_copy = thing;
       }
+      return a_copy;
+    }
     
-      this._last_saved = {};
-      for (var k in this) {
-        if (["_last_saved", "update_last_saved"].indexOf(k) > -1) 
-          continue;
-        var val = this[k];
-        if (!val) {
-          this._last_saved[k] = val;
-        } else if ( Array.isArray(val) ) {
-          this._last_saved[k] = [];
-          var that = this;
-          val.forEach(function(item) {
-            if (item._last_saved !== undefined) {
-              item.update_last_saved();
-              that._last_saved[k].push(item._last_saved);
-            } else {
-              that._last_saved[k].push(copy(item));
-            }
-          });
-        } else if (val._last_saved != undefined) { 
-          val.update_last_saved();
-          this._last_saved[k] = val._last_saved;
-        } else {
-          this._last_saved[k] = copy(val);
-        }
+    this._last_saved = {};
+    for (var k in this) {
+      if (["_last_saved", "update_last_saved"].indexOf(k) > -1) 
+        continue;
+      var val = this[k];
+      if (!val) {
+        this._last_saved[k] = val;
+      } else if ( Array.isArray(val) ) {
+        this._last_saved[k] = [];
+        var that = this;
+        val.forEach(function(item) {
+          if (item._last_saved !== undefined) {
+            item.update_last_saved();
+            that._last_saved[k].push(item._last_saved);
+          } else {
+            that._last_saved[k].push(copy(item));
+          }
+        });
+      } else if (val._last_saved != undefined) { 
+        val.update_last_saved();
+        this._last_saved[k] = val._last_saved;
+      } else {
+        this._last_saved[k] = copy(val);
       }
-      return this;
-    }    
-  }
+    }
+    return this;
+  }    
   var cf = get_column_family(keyspace, column_family);
   if (column_name) {
-    if (o.constructor.name == 'Object') {
+    // if (o.constructor.name == 'Object') {
       o._name = column_name;
       Object.defineProperty(o, "id", { get: this_name, enumerable: true });
       Object.defineProperty(o, "key", { get: row_key, enumerable: true });
@@ -885,7 +892,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
       o.destroy = function(event_listeners) {
         destroy_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
       }
-    }
+    // }
   } else if (super_column_name) {
     o._name = super_column_name;
     Object.defineProperty(o, "id", { get: this_name, enumerable: true });

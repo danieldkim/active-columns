@@ -4,7 +4,7 @@ log4js.addAppender(log4js.consoleAppender());
 var path_nodes = __filename.split('/');
 var logger_name = path_nodes[path_nodes.length-1].split('.')[0];
 var logger = log4js.getLogger(logger_name);
-logger.setLevel('INFO');
+logger.setLevel('DEBUG');
 var sys = require('sys')
 var _ = require('underscore')._
 
@@ -1606,6 +1606,7 @@ function test_column_value_types(test_done) {
   var ColumnValueTypeTest = ActiveColumns.get_column_family("ActiveColumnsTest", "ColumnValueTypeTest");  
   var date_val = new Date();
   var number_val = Math.random();
+  var json_val = {foo: 'boo', bar: 10};
   o = ColumnValueTypeTest.new_object([
    {name: "date_col", value: date_val},
    {name: "number_col", value: number_val}
@@ -1625,16 +1626,18 @@ function test_column_value_types_static(test_done) {
   var ColumnValueTypeTestStatic = ActiveColumns.get_column_family("ActiveColumnsTest", "ColumnValueTypeTestStatic");  
   var date_val = new Date();
   var number_val = Math.random();
-  var boolean_val = false;
+  var json_val = {foo: 'boo', bar: 10};
   o = ColumnValueTypeTestStatic.new_object({
-   date_col: date_val, number_col: number_val, boolean_val: boolean_val
+   date_col: date_val, number_col: number_val, json_col: json_val
   });
   _test_column_value_types_static(ColumnValueTypeTestStatic, o, function(result) {
-    assert.ok(o.date_col.valueOf, 
+    assert.ok(result.date_col.valueOf, 
               "Doesn't look like a date object, no valueOf() method");
     assert.equal(date_val.valueOf(), result.date_col.valueOf());
     assert.equal("number", typeof result.number_col);
     assert.equal(number_val, result.number_col);
+    assert.equal(json_val.foo, result.json_col.foo);
+    assert.equal(json_val.bar, result.json_col.bar);
   }, test_done);
 }
 
@@ -1657,7 +1660,7 @@ function _test_column_value_types_static(cf, o, assert_func, test_done) {
   var clean_up_on_exception_for = clean_up_wrapper.clean_up_on_exception_for
   o.save({
    success: clean_up_on_exception_for(function(id) {
-     cf.find(id, {column_names: ["date_col", "number_col"]}, {
+     cf.find(id, {column_names: ["date_col", "number_col", "json_col"]}, {
        success: clean_up_on_exception_for(function(result) {
          o = result;
          assert_func(result);
