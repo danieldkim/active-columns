@@ -307,12 +307,21 @@ function mutations_for_save_row_object(keyspace, column_family, o, delete_missin
   } else {
     if (cf.column_names) {
       mutations = _.reduce(cf.column_names, [], function(memo, name) {
-        if (o[name]) memo.push({name:name, value: o[name], timestamp: "auto"}); 
+        if (o[name]) 
+          memo.push({
+            name:name, 
+            value: pre_serialize_column_value(cf, name, o[name]), 
+            timestamp: "auto"
+          }); 
         return memo;
       })
     } else {
       mutations = _.map(o.columns, function(col) { 
-        return {name:col.name, value: col.value, timestamp: "auto"};
+        return {
+          name:col.name, 
+          value: pre_serialize_column_value(cf, col.name, col.value), 
+          timestamp: "auto"
+        };
       })
     }        
   }
@@ -377,12 +386,21 @@ function mutations_for_save_super_column_object(keyspace, column_family, o, dele
   } else {
     if (cf.subcolumn_names) {
       insert_columns = _.reduce(cf.subcolumn_names, [], function(memo, name) {
-        if (o[name]) memo.push({name:name, value: o[name], timestamp: "auto"});
+        if (o[name]) 
+          memo.push({
+            name:name, 
+            value: pre_serialize_column_value(cf, name, o[name]), 
+            timestamp: "auto"
+          });
         return memo;
       })
     } else {
       insert_columns = _.map(o.columns, function(col) { 
-        return {name:col.name, value: col.value, timestamp: "auto"};
+        return {
+          name:col.name, 
+          value: pre_serialize_column_value(cf, col.name, col.value), 
+          timestamp: "auto"
+        };
       })
     }
   }
@@ -429,6 +447,14 @@ function column_for_save_column_object(o) {
   o._name = name;
   o._last_saved = last_saved;
   return {name: o._name, value: json, timestamp: "auto"};  
+}
+
+function pre_serialize_column_value(column_family, name, value) {
+  if (column_family.column_value_types &&
+      column_family.column_value_types[name] == 'json')
+    return JSON.stringify(value);
+  else
+    return value;
 }
 
 function destroy_row_object(keyspace, column_family, o, event_listeners) {
@@ -674,6 +700,11 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
   if (column_name) { // value under a column name
     var subcolumn_value_type = cf.subcolumn_value_type
     var column_value_type = cf.column_value_type
+    subcolumn_value_type = subcolumn_value_type
+    if (cf.column_value_types && cf.column_value_types[column_name]) {
+      subcolumn_value_type = subcolumn_value_type || cf.column_value_types[column_name]
+      column_value_type = column_value_type || cf.column_value_types[column_name]
+    }
     if ((super_column_name && subcolumn_value_type && subcolumn_value_type  == 'json')
          ||
          (!super_column_name && column_value_type && column_value_type == 'json')) {
@@ -681,13 +712,11 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
         logger.debug("Creating json value " + sys.inspect(columns, false, null) + " under " + path);
       o = eval('(' + columns + ')')
       o.timestamp = timestamp;
-    } else if (cf.column_value_types &&
-               cf.column_value_types[column_name] == 'date') {
+    } else if (column_value_type == 'date') {
       o = new Date(columns);
       if ( logger.isDebugEnabled() )
         logger.debug("Returning date " + o + " under " + path);
-    } else if (cf.column_value_types &&
-               cf.column_value_types[column_name] == 'number') {
+    } else if (column_value_type == 'number') {
       o = +columns;
       if ( logger.isDebugEnabled() )
         logger.debug("Returning number " + o + " under " + path);
@@ -719,7 +748,10 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
         if (value.constructor.name == 'Object') {
           o.columns.push(value);
         } else {
-          o.columns.push({name: col.name, value: value});          
+          o.columns.push({
+            name: col.name, 
+            value: pre_serialize_column_value(cf, col.name, value)
+          });          
         }
       })
     }
@@ -768,7 +800,11 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
           if (value.constructor.name == 'Object') {
             o.columns.push(value);
           } else {
-            o.columns.push({name: col.name, value: value, timestamp: col.timestamp});
+            o.columns.push({
+              name: col.name, 
+              value: pre_serialize_column_value(cf, col.name, value), 
+              timestamp: col.timestamp
+            });
           }                    
         })
       }
@@ -785,50 +821,51 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   
   function row_key() { return key; }
   function this_name() { return this._name; }
-  if (o.constructor.name == 'Object')
+  if (o.constructor.name == 'Object') {
     Object.defineProperty(o, "_last_saved", {value: null, writable: true});
-  o.update_last_saved = function() {
+    o.update_last_saved = function() {
 
-    function copy(thing) {
-      var a_copy;
-      if (typeof thing == "object") {
-        a_copy = {}
-        for (var k in thing) {
-          a_copy[k] = copy(thing[k]);
-        }
-      } else {
-        a_copy = thing;
-      }
-      return a_copy;
-    }
-    
-    this._last_saved = {};
-    for (var k in this) {
-      if (["_last_saved", "update_last_saved"].indexOf(k) > -1) 
-        continue;
-      var val = this[k];
-      if (!val) {
-        this._last_saved[k] = val;
-      } else if ( Array.isArray(val) ) {
-        this._last_saved[k] = [];
-        var that = this;
-        val.forEach(function(item) {
-          if (item._last_saved !== undefined) {
-            item.update_last_saved();
-            that._last_saved[k].push(item._last_saved);
-          } else {
-            that._last_saved[k].push(copy(item));
+      function copy(thing) {
+        var a_copy;
+        if (typeof thing == "object") {
+          a_copy = {}
+          for (var k in thing) {
+            a_copy[k] = copy(thing[k]);
           }
-        });
-      } else if (val._last_saved != undefined) { 
-        val.update_last_saved();
-        this._last_saved[k] = val._last_saved;
-      } else {
-        this._last_saved[k] = copy(val);
+        } else {
+          a_copy = thing;
+        }
+        return a_copy;
       }
-    }
-    return this;
-  }    
+    
+      this._last_saved = {};
+      for (var k in this) {
+        if (["_last_saved", "update_last_saved"].indexOf(k) > -1) 
+          continue;
+        var val = this[k];
+        if (!val) {
+          this._last_saved[k] = val;
+        } else if ( Array.isArray(val) ) {
+          this._last_saved[k] = [];
+          var that = this;
+          val.forEach(function(item) {
+            if (item._last_saved !== undefined) {
+              item.update_last_saved();
+              that._last_saved[k].push(item._last_saved);
+            } else {
+              that._last_saved[k].push(copy(item));
+            }
+          });
+        } else if (val._last_saved != undefined) { 
+          val.update_last_saved();
+          this._last_saved[k] = val._last_saved;
+        } else {
+          this._last_saved[k] = copy(val);
+        }
+      }
+      return this;
+    }    
+  }
   var cf = get_column_family(keyspace, column_family);
   if (column_name) {
     if (o.constructor.name == 'Object') {
