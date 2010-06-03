@@ -681,6 +681,16 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
         logger.debug("Creating json value " + sys.inspect(columns, false, null) + " under " + path);
       o = eval('(' + columns + ')')
       o.timestamp = timestamp;
+    } else if (cf.column_value_types &&
+               cf.column_value_types[column_name] == 'date') {
+      o = new Date(columns);
+      if ( logger.isDebugEnabled() )
+        logger.debug("Returning date " + o + " under " + path);
+    } else if (cf.column_value_types &&
+               cf.column_value_types[column_name] == 'number') {
+      o = +columns;
+      if ( logger.isDebugEnabled() )
+        logger.debug("Returning number " + o + " under " + path);
     } else {
       if ( logger.isDebugEnabled() )
         logger.debug("Returning value " + sys.inspect(columns, false, null) + " under " + path);
@@ -974,6 +984,7 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
     type: config.type,
     column_names: config.column_names,
     column_value_type: config.column_value_type,
+    column_value_types: config.column_value_types,
     subcolumn_names: config.subcolumn_names,
     subcolumn_value_type: config.subcolumn_value_type,
     callbacks: config.callbacks || {}
@@ -1004,8 +1015,7 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
 
     var key, super_column_name, column_name, init_cols;
     var last_arg = arguments[arguments.length-1];
-    if (typeof last_arg == 'object' &&
-        (last_arg.constructor.name == 'Object' || last_arg.constructor.name == 'Array')) {
+    if (['Object', 'Array'].indexOf(last_arg.constructor.name) > -1) {
       init_cols = last_arg;
       handle_id_args.apply(this, Array.prototype.slice.call(arguments, 0, arguments.length-1));
     } else {
@@ -1023,40 +1033,39 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
                  
     if ( column_name ) columns = '{}'
     else columns = []
-    // logger.info("new_object - keyspace: " + ks.name + ",column_family:" + this.name + 
-    //          ",key:" + key + ",super_column_name:" + super_column_name + ",column_name:" + this.column_name +
+    // logger.info("new_object - keyspace: " + keyspace_name + ",column_family:" + column_family_name + 
+    //          ",key:" + key + ",super_column_name:" + super_column_name + ",column_name:" + column_name +
     //          ",init_cols:" + sys.inspect(init_cols, false, null) + ",columns:" + sys.inspect(columns, false, null));
     var mem_obj = create_mem_object(keyspace_name, column_family_name, key, super_column_name,
                       column_name, columns);
                       
     if (init_cols) { 
       if (init_cols.constructor.name == 'Object') {                                                
-        var val_type;
-        // ugly but effective way to get the type of values in the hash
-        for (var k in init_cols) {
-          val_type = typeof init_cols[k]
-          break; 
-        }          
         // can initialize with a hash if this is:
         // - a column object, or
         // - a row object with fixed column names or json column value type, or
         // - a super column object with fixed subcolumn names or json column value type
-        if (column_name || val_type != 'object') {
+        if (column_name || 
+            (!super_column_name && 
+              (this.column_names || this.column_value_type == 'json')) ||
+            (super_column_name && 
+              (this.subcolumn_names || this.subcolumn_value_type == 'json'))) {
           for (var name in init_cols) {
-            mem_obj[name] = init_cols[name];
+            var val = init_cols[name];
+            if (val.constructor.name == 'Object') {
+              if ( !super_column_name && 
+                  (this.column_names || this.column_value_type == 'json') ) {
+                mem_obj[name] = this.new_object(key, name, init_cols[name]);
+              } else if ( super_column_name && 
+                          (this.subcolumn_names || this.subcolumn_value_type == 'json') ) {
+                mem_obj[name] = this.new_object(key, super_column_name, name, init_cols[name]);
+              } else {
+                throw Error("Cannot use a hash to initialize this object.");
+              }
+            } else {
+              mem_obj[name] = init_cols[name];
+            }
           }
-        } else if ( !super_column_name && 
-                    (this.column_names || this.column_value_type == 'json') ) {
-          for (var name in init_cols) {
-            mem_obj[name] = this.new_object(key, name, init_cols[name]);
-          }
-        } else if ( super_column_name && 
-                    (this.subcolumn_names || this.subcolumn_value_type == 'json') ) {
-          for (var name in init_cols) {
-            mem_obj[name] = this.new_object(key, super_column_name, name, init_cols[name]);
-          }
-        } else {
-          throw Error("Cannot use a hash to initialize this object.");
         }
       } else if (init_cols.constructor.name == 'Array') {
         // can initialize with an array if this is:

@@ -39,6 +39,10 @@ test_helpers.run_async_tests_sequentially([
     test_StateLastLoginUsers_last_login_level],
   ["Test StateLastLoginUsers column family, state level", 
     test_StateLastLoginUsers_state_level],
+  ["Test column value types", 
+    test_column_value_types],
+  ["Test column value types, static column names", 
+    test_column_value_types_static],
   ["Test auto key generation", 
     test_auto_key_generation],
   // ["Test auto super column name generation", 
@@ -1597,6 +1601,80 @@ function test_StateLastLoginUsers_state_level(test_done) {
   }
     
 }
+
+function test_column_value_types(test_done) {
+  var ColumnValueTypeTest = ActiveColumns.get_column_family("ActiveColumnsTest", "ColumnValueTypeTest");  
+  var date_val = new Date();
+  var number_val = Math.random();
+  o = ColumnValueTypeTest.new_object([
+   {name: "date_col", value: date_val},
+   {name: "number_col", value: number_val}
+  ]);
+  _test_column_value_types_static(ColumnValueTypeTest, o, function() {
+    var date_col = _.detect(o.columns, function(col) {return col.name == "date_col";});
+    assert.ok(date_col.value.valueOf, 
+              "Doesn't look like a date object, no valueOf() method");
+    assert.equal(date_val.valueOf(), date_col.value.valueOf());
+    var number_col = _.detect(o.columns, function(col) {return col.name == "number_col";});
+    assert.equal("number", typeof number_col.value);
+    assert.equal(number_val, number_col.value);    
+  }, test_done);
+}
+
+function test_column_value_types_static(test_done) {
+  var ColumnValueTypeTestStatic = ActiveColumns.get_column_family("ActiveColumnsTest", "ColumnValueTypeTestStatic");  
+  var date_val = new Date();
+  var number_val = Math.random();
+  var boolean_val = false;
+  o = ColumnValueTypeTestStatic.new_object({
+   date_col: date_val, number_col: number_val, boolean_val: boolean_val
+  });
+  _test_column_value_types_static(ColumnValueTypeTestStatic, o, function(result) {
+    assert.ok(o.date_col.valueOf, 
+              "Doesn't look like a date object, no valueOf() method");
+    assert.equal(date_val.valueOf(), result.date_col.valueOf());
+    assert.equal("number", typeof result.number_col);
+    assert.equal(number_val, result.number_col);
+  }, test_done);
+}
+
+function _test_column_value_types_static(cf, o, assert_func, test_done) {
+  function clean_up(clean_up_done) {
+    if (o.destroy) {
+      o.destroy({
+        success: function(result) {
+          logger.info("Object destroyed in clean_up.")
+          clean_up_done();
+        },
+        error: function(mess) {
+          assert.ok(false, "error destroying object:" + mess)
+        }        
+      });
+    }
+  }
+  var clean_up_wrapper = test_helpers.clean_up_wrapper_factory(clean_up, test_done)
+  var clean_up_after = clean_up_wrapper.clean_up_after
+  var clean_up_on_exception_for = clean_up_wrapper.clean_up_on_exception_for
+  o.save({
+   success: clean_up_on_exception_for(function(id) {
+     cf.find(id, {column_names: ["date_col", "number_col"]}, {
+       success: clean_up_on_exception_for(function(result) {
+         o = result;
+         assert_func(result);
+         logger.info("Object successfully returned from find with correct column value types.")
+         clean_up(function() {test_done(true);});
+       }),
+       error: function(mess) {
+         assert.ok(false, "Error trying to find object: " + mess)
+       } 
+     });
+   }),
+   error: clean_up_on_exception_for(function(mess) {
+     assert.ok(false, "Error trying to save object: " + mess)
+   })
+  });
+}
+
 
 function test_auto_key_generation(test_done) {
   var alice, bob;
