@@ -1059,7 +1059,7 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
 
     var key, super_column_name, column_name, init_cols;
     var last_arg = arguments[arguments.length-1];
-    if (['Object', 'Array'].indexOf(last_arg.constructor.name) > -1) {
+    if (last_arg && ['Object', 'Array'].indexOf(last_arg.constructor.name) > -1) {
       init_cols = last_arg;
       handle_id_args.apply(this, Array.prototype.slice.call(arguments, 0, arguments.length-1));
     } else {
