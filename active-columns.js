@@ -829,8 +829,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   
   function row_key() { return key; }
   function this_name() { return this._name; }
-  // if (o.constructor.name == 'Object')
-    Object.defineProperty(o, "_last_saved", {value: null, writable: true});
+  Object.defineProperty(o, "_last_saved", {value: null, writable: true});
   o.update_last_saved = function() {
 
     function copy(thing) {
@@ -875,24 +874,22 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   }    
   var cf = get_column_family(keyspace, column_family);
   if (column_name) {
-    // if (o.constructor.name == 'Object') {
-      o._name = column_name;
-      Object.defineProperty(o, "id", { get: this_name, enumerable: true });
-      Object.defineProperty(o, "key", { get: row_key, enumerable: true });
-      Object.defineProperty(o, "after_initialize_callbacks", { 
-        get: function() { return cf.callbacks.after_initialize_column;} 
-      });
-      Object.defineProperty(o, "before_save_callbacks", { 
-        get: function() { return cf.callbacks.before_save_column;} 
-      });
-      o.get_super_column_name = function() { return super_column_name};
-      o.save = function(event_listeners, delete_missing_columns) {
-        save_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
-      }
-      o.destroy = function(event_listeners) {
-        destroy_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
-      }
-    // }
+    o._name = column_name;
+    Object.defineProperty(o, "id", { get: this_name, enumerable: true });
+    Object.defineProperty(o, "key", { get: row_key, enumerable: true });
+    Object.defineProperty(o, "after_initialize_callbacks", { 
+      get: function() { return cf.callbacks.after_initialize_column;} 
+    });
+    Object.defineProperty(o, "before_save_callbacks", { 
+      get: function() { return cf.callbacks.before_save_column;} 
+    });
+    o.get_super_column_name = function() { return super_column_name};
+    o.save = function(event_listeners, delete_missing_columns) {
+      save_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
+    }
+    o.destroy = function(event_listeners) {
+      destroy_column_object(keyspace, column_family, key, super_column_name, this, event_listeners);
+    }
   } else if (super_column_name) {
     o._name = super_column_name;
     Object.defineProperty(o, "id", { get: this_name, enumerable: true });
