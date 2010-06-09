@@ -8,16 +8,14 @@ logger.setLevel('INFO');
 var sys = require('sys')
 var _ = require('underscore')._
 
-var test_helpers = require('./test-helpers') 
-test_helpers.set_logger(logger);
-
 var ActiveColumns = require('active-columns');
 ActiveColumns.set_logger(logger);
 require('./init-test-keyspace').do_it();
 
-var tests = {
-  
-  "Mutations for Users1": function () {
+var TestSuite = require('async_testing').TestSuite;
+var suite = new TestSuite("Mutations tests");
+suite.addTests({
+  "Mutations for Users1": function (assert) {
     var Users1 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users1");
     var alice = Users1.new_object("alice", {
       city: "New York", state: "NY", last_login: 1271184168, sex: "F"
@@ -72,7 +70,7 @@ var tests = {
         
   },
   
-  "Mutations for Users2": function () {
+  "Mutations for Users2": function (assert) {
     var Users2 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users2");
     var alice = Users2.new_object("alice", [
       {name: "city", value: "New York"},
@@ -97,7 +95,7 @@ var tests = {
     })    
   },
   
-  "Mutations for StateUsers1": function () {
+  "Mutations for StateUsers1": function (assert) {
     var StateUsers1 = ActiveColumns.get_column_family("ActiveColumnsTest", "StateUsers1");
     var ny = StateUsers1.new_object("ny", [
       {_name: "alice", sex: "F", city: "New York"},
@@ -150,7 +148,7 @@ var tests = {
     })
   },
    
-  "Mutations for StateUsers2": function () {
+  "Mutations for StateUsers2": function (assert) {
     var StateUsers2 = ActiveColumns.get_column_family("ActiveColumnsTest", "StateUsers2");
     var ny = StateUsers2.new_object("NY", [
       {_name: "alice", state: "NY", city: "New York"},
@@ -160,8 +158,8 @@ var tests = {
     // ny.add_column("alice", {state: "NY", city: "New York"});
     // ny.add_column("bob", {state: "NY", city: "Jackson Heights"});    
     var expected_mutations = [ 
-      { name: 'alice', value: '{"state":"NY","city":"New York"}', timestamp: 'auto' }, 
-      { name: 'bob', value: '{"state":"NY","city":"Jackson Heights"}', timestamp: 'auto'}
+      { name: 'alice', value: '{"key":"NY","state":"NY","city":"New York"}', timestamp: 'auto' }, 
+      { name: 'bob', value: '{"key":"NY","state":"NY","city":"Jackson Heights"}', timestamp: 'auto'}
     ]
     var mutations = ActiveColumns.low_level.mutations_for_save_row_object(
       "ActiveColumnsTest", "StateUsers2", ny)    
@@ -180,7 +178,7 @@ var tests = {
               "Mutations did not contain expected mutation: " + sys.inspect(exp_mut, false, null));
   },
   
-  "Mutations for StateLastLoginUsers": function () {
+  "Mutations for StateLastLoginUsers": function (assert) {
     var StateLastLoginUsers = ActiveColumns.get_column_family("ActiveColumnsTest", "StateLastLoginUsers");
     var ny = StateLastLoginUsers.new_object("ny", 
       [
@@ -208,19 +206,17 @@ var tests = {
       {
         "name":2445066,
         "columns":[
-          {"name":"alice","value":"{\"city\":\"New York\"}","timestamp":"auto"},
-          {"name":"bob","value":"{\"city\":\"Jackson Heights\"}","timestamp":"auto"}
+          {"name":"alice","value":"{\"key\":\"ny\",\"city\":\"New York\"}","timestamp":"auto"},
+          {"name":"bob","value":"{\"key\":\"ny\",\"city\":\"Jackson Heights\"}","timestamp":"auto"}
         ]
       },
       {
         "name":2445067,
-        "columns":[{"name":"chuck","value":"{\"city\":\"Elmhurst\"}","timestamp":"auto"}]
+        "columns":[{"name":"chuck","value":"{\"key\":\"ny\",\"city\":\"Elmhurst\"}","timestamp":"auto"}]
       }
     ]
     // sys.puts("mutations: " + sys.inspect(mutations, false, null));
-    assert.equal(2, mutations.length);
-    
-    
+    assert.equal(2, mutations.length);        
     expected_mutations.forEach(function(exp_mut) {
       assert.ok(_.any(mutations, function(mut) {
         if (exp_mut.name != mut.name) return false;
@@ -257,9 +253,6 @@ var tests = {
       " did not contain expected column: " + sys.inspect(exp_col, false, null));
     })
   }
-  
-}
+});
 
-for (var test_name in tests) {
-  test_helpers.run_sync_test(test_name, tests[test_name]);
-}
+suite.runTests();
