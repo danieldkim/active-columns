@@ -21,7 +21,9 @@ users1Suite.setup(function() {
 users1Suite.teardown(function(finished) {
   var alice = this.alice, bob = this.bob;
   this.Users1.callbacks = {};
-  if (alice && alice.destroy) {
+  var destroy_alice = alice && alice.destroy;
+  var destroy_bob = bob && bob.destroy;
+  if (destroy_alice) {
     alice.destroy({
       success: function(result) {
         logger.info("Alice destroyed in teardown.")
@@ -31,8 +33,8 @@ users1Suite.teardown(function(finished) {
         assert.ok(false, "error destroying alice." + mess)
       }        
     });
-  }
-  if (bob && bob.destroy) {
+  } 
+  if (destroy_bob) {
     bob.destroy({
       success: function(result) {
         logger.info("Bob destroyed in teardown.")
@@ -42,8 +44,8 @@ users1Suite.teardown(function(finished) {
         assert.ok(false, "error destroying bob." + mess)
       }        
     });
-    
   }
+  if (! (destroy_alice || destroy_bob)) finished();
 });
 users1Suite.addTests({
   "Test Users1 column family": test_Users1,
@@ -56,7 +58,9 @@ users2Suite.setup(function() {
 });
 users2Suite.teardown(function(finished) {
   var alice = this.alice, bob = this.bob;
-  if (alice && alice.destroy) {
+  var destroy_alice = alice && alice.destroy;
+  var destroy_bob = bob && bob.destroy;
+  if (destroy_alice) {
     alice.destroy({
       success: function(result) {
         logger.info("Alice destroyed in 25.")
@@ -67,7 +71,7 @@ users2Suite.teardown(function(finished) {
       }        
     });
   }
-  if (bob && bob.destroy) {
+  if (destroy_bob) {
     bob.destroy({
       success: function(result) {
         logger.info("Bob destroyed in teardown.")
@@ -76,9 +80,9 @@ users2Suite.teardown(function(finished) {
       error: function(mess) {
         assert.ok(false, "error destroying bob." + mess)
       }        
-    });
-    
+    }); 
   }
+  if (! (destroy_alice || destroy_bob)) finished();  
 });
 users2Suite.addTests({
   "Test Users2 column family": test_Users2
@@ -99,6 +103,8 @@ stateUsersUserLevelSuite.teardown(function(finished) {
         assert.ok(false, "error destroying ny_alice." + mess)
       }        
     });
+  } else {
+    finished();
   }
 });
 stateUsersUserLevelSuite.addTests({
@@ -121,6 +127,8 @@ stateUsersStateLevelSuite.teardown(function(finished) {
         assert.ok(false, "error destroying ny." + mess)
       }        
     });
+  } else {
+    finished();
   }
 });
 stateUsersStateLevelSuite.addTests({
@@ -143,6 +151,8 @@ stateLastLoginUsersUserLevelSuite.teardown(function(finished) {
         assert.ok(false, "error destroying ny_1271184168_alice." + mess)
       }        
     });
+  } else {
+    finished();
   }
 });
 stateLastLoginUsersUserLevelSuite.addTests({
@@ -164,6 +174,8 @@ stateLastLoginUsersLastLoginLevelSuite.teardown(function(finished) {
         assert.ok(false, "error destroying ny_1271184168." + mess)
       }        
     });
+  } else {
+    finished();
   }
 });
 stateLastLoginUsersLastLoginLevelSuite.addTests({
@@ -185,6 +197,8 @@ stateLastLoginUsersStateLevelSuite.teardown(function(finished) {
         assert.ok(false, "error destroying ny." + mess)
       }        
     });
+  } else {
+    finished();
   }
 });
 stateLastLoginUsersStateLevelSuite.addTests({
@@ -205,6 +219,8 @@ columnValueTypeSuite.teardown(function(finished) {
         assert.ok(false, "error destroying object:" + mess)
       }        
     });
+  } else {
+    finished();
   }
 });
 columnValueTypeSuite.addTests({
@@ -216,7 +232,9 @@ columnValueTypeSuite.addTests({
 var autoIdGenerationSuite = new TestSuite();
 autoIdGenerationSuite.teardown(function (finished) {
   var alice = this.alice, bob = this.bob;
-  if (alice && alice.destroy) {
+  var destroy_alice = alice && alice.destroy;
+  var destroy_bob = bob && bob.destroy;
+  if (destroy_alice) {
     alice.destroy({
       success: function(result) {
         logger.info("Alice destroyed in teardown.")
@@ -227,7 +245,7 @@ autoIdGenerationSuite.teardown(function (finished) {
       }        
     });
   }
-  if (bob && bob.destroy) {
+  if (destroy_bob) {
     bob.destroy({
       success: function(result) {
         logger.info("Bob destroyed in teardown.")
@@ -238,6 +256,7 @@ autoIdGenerationSuite.teardown(function (finished) {
       }        
     });
   }
+  if (! (destroy_alice || destroy_bob)) finished();
 });
 autoIdGenerationSuite.addTests({  
   "Test auto key generation": test_auto_key_generation
