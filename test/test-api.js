@@ -7,6 +7,7 @@ var logger = log4js.getLogger(logger_name);
 logger.setLevel('INFO');
 var sys = require('sys')
 var _ = require('underscore')._
+var async = require('async');
 
 var ActiveColumns = require('active-columns');
 ActiveColumns.set_logger(logger);
@@ -277,16 +278,68 @@ function test_Users1(assert, finished, test) {
 
   var Users1 = test.Users1;
   var alice;
-  
-  start();
-  
-  function start() { unsuccessful_find(unsuccessful_destroy); };
-  
-  function unsuccessful_find(not_found_action) {
-    Users1.find("alice", create_unsuccessful_find_callback("alice", not_found_action));    
+  var save_cb_names = ["before_save_row", "after_save_row"];
+
+  function assert_alice(version, city) {
+    assert.equal("alice", version.key);
+    assert.equal("alice", version.id);
+    assert.equal(city, version.city);
+    assert.equal("NY", version.state);
+    assert.equal(1271184168, version.last_login);
+    assert.equal("F", version.sex);       
+  }
+
+  function assert_bob() {
+    assert.equal("bob", bob.key);
+    assert.equal("bob", bob.id);
+    assert.equal("Jackson Heights", bob.city);
+    assert.equal("NY", bob.state);
+    assert.equal("1271184168", bob.last_login);
+    assert.equal("M", bob.sex);    
+  }
+
+  function find_alice_and_bob(keyspec, next) {
+    Users1.find(keyspec, function(err, results) {
+      if (err) assert.ok(false, "Error finding bob and alice: " + err);        
+      else {
+        assert.equal(2, Object.keys(results).length);
+        _.forEach(results, function(res, k) {
+          if (res.key == "alice") {
+            alice = test.alice = res;
+            if (isNaN(parseInt(k))) assert.equal("alice", k);
+            assert_alice(alice, "Los Angeles");
+          } else if (res.key == "bob") {
+            bob = test.bob = res;
+            if (isNaN(parseInt(k)))  assert.equal("bob", k);
+            assert_bob();
+          } else {
+            assert.ok(false, "Got an unexpected key when finding alice and bob.")
+          }
+        })
+        next();
+      }
+    })
   }
   
-  function unsuccessful_destroy() {
+  async.series([
+    unsuccessful_find,
+    unsuccessful_destroy,
+    aborted_save,
+    first_save,
+    successful_find,
+    save_after_find,
+    add_bob_to_the_mix,
+    find_alice_and_bob_with_range,
+    find_alice_and_bob_with_keys,
+    successful_destroy
+  ],
+  finished);
+
+  function unsuccessful_find(next) {
+    Users1.find("alice", create_unsuccessful_find_callback("alice", next));    
+  }
+
+  function unsuccessful_destroy(next) {
     var cb_token = Math.random();
     var tcm = tokenCallbackManager()
     var cb_token = Math.random();
@@ -301,19 +354,17 @@ function test_Users1(assert, finished, test) {
       assert.ok(false, "Expected destroy for alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy for alice threw exception as expected: " + e);
-      aborted_save();
+      next();
     }
   }
 
-  function aborted_save() {
+  function aborted_save(next) {
     _aborted_save(Users1, "row", alice, "alice",  function() {
-      unsuccessful_find(first_save);
+      unsuccessful_find(next);
     });
   }
-  
-  var save_cb_names = ["before_save_row", "after_save_row"];
-  
-  function first_save() {
+
+  function first_save(next) {
     var cb_token = Math.random();
     var tcm = tokenCallbackManager();
     tcm.add(Users1, save_cb_names, cb_token);
@@ -329,12 +380,12 @@ function test_Users1(assert, finished, test) {
       else {
        logger.info("Alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
-       successful_find();
+       next();
      }
     });    
   }
-  
-  function successful_find() {
+
+  function successful_find(next) {
     var cb_token = Math.random();
     var find_cb_names = ["after_find_row", "after_initialize_row"]
     var tcm = tokenCallbackManager();
@@ -348,22 +399,13 @@ function test_Users1(assert, finished, test) {
         assert_alice(alice._last_saved, "New York");
         tcm.assert(find_cb_names, cb_token);
         logger.info("Alice found successfully and save result validated.");
-        save_after_find();
+        next();
       }
     });
-    
-  }
-  
-  function assert_alice(version, city) {
-    assert.equal("alice", version.key);
-    assert.equal("alice", version.id);
-    assert.equal(city, version.city);
-    assert.equal("NY", version.state);
-    assert.equal(1271184168, version.last_login);
-    assert.equal("F", version.sex);       
+
   }
 
-  function save_after_find() {
+  function save_after_find(next) {
     alice.city = "Los Angeles";
     assert_alice(alice, "Los Angeles");
     assert_alice(alice._last_saved, "New York");
@@ -389,14 +431,14 @@ function test_Users1(assert, finished, test) {
             alice = test.alice = result;
             assert.equal("Los Angeles", alice.city);
             Users1.callbacks = {}
-            add_bob_to_the_mix();
+            next();
           }
         });
       }
     });
   }
-  
-  function add_bob_to_the_mix() {
+
+  function add_bob_to_the_mix(next) {
     bob = test.bob = Users1.new_object("bob", {
      city: "Jackson Heights", state: "NY", last_login: 1271184168, sex: "M"
     });
@@ -404,58 +446,26 @@ function test_Users1(assert, finished, test) {
       if (err) assert.ok(false, "Error saving bob: " + err);        
       else {
         logger.info("Saved bob successfully.");
-        find_alice_and_bob_with_range();
-      }
-    });
-  }
-  
-  function find_alice_and_bob_with_range() {
-    find_alice_and_bob({start_key:'', end_key:'', count: 100}, function() {
-      logger.info("Found alice and bob with range successfully.");
-      find_alice_and_bob_with_keys();
-    });
-  }
-  
-  function find_alice_and_bob_with_keys() {
-    find_alice_and_bob(['alice', 'bob'], function() {
-      logger.info("Found alice and bob with keys successfully.");
-      successful_destroy();      
-    }); 
-  }
-  
-  function find_alice_and_bob(keyspec, next) {
-    Users1.find(keyspec, function(err, results) {
-      if (err) assert.ok(false, "Error finding bob and alice: " + err);        
-      else {
-        assert.equal(2, Object.keys(results).length);
-        _.forEach(results, function(res, k) {
-          if (res.key == "alice") {
-            alice = test.alice = res;
-            if (isNaN(parseInt(k))) assert.equal("alice", k);
-            assert_alice(alice, "Los Angeles");
-          } else if (res.key == "bob") {
-            bob = test.bob = res;
-            if (isNaN(parseInt(k)))  assert.equal("bob", k);
-            assert_bob();
-          } else {
-            assert.ok(false, "Got an unexpected key when finding alice and bob.")
-          }
-        })
         next();
       }
-    })
+    });
   }
-  
-  function assert_bob() {
-    assert.equal("bob", bob.key);
-    assert.equal("bob", bob.id);
-    assert.equal("Jackson Heights", bob.city);
-    assert.equal("NY", bob.state);
-    assert.equal("1271184168", bob.last_login);
-    assert.equal("M", bob.sex);    
+
+  function find_alice_and_bob_with_range(next) {
+    find_alice_and_bob({start_key:'', end_key:'', count: 100}, function() {
+      logger.info("Found alice and bob with range successfully.");
+      next();
+    });
   }
-  
-  function successful_destroy() {
+
+  function find_alice_and_bob_with_keys(next) {
+    find_alice_and_bob(['alice', 'bob'], function() {
+      logger.info("Found alice and bob with keys successfully.");
+      next();      
+    }); 
+  }
+
+  function successful_destroy(next) {
     try {
       var cb_token = Math.random();;
       Users1.add_callback("after_destroy_row", function(previous_version, cb_finished) {
@@ -469,14 +479,14 @@ function test_Users1(assert, finished, test) {
           Users1.callbacks = {}
           assert.equal(cb_token, alice.after_destroy_token);
           logger.info("Successfully destroyed alice.");
-          unsuccessful_find(finished);
+          unsuccessful_find(next);
         }
       });
     } catch (e) {
       assert.ok(false, "Destroy for alice threw an exception.");
     }    
   }
-    
+      
 }
 
 function test_Users2(assert, finished, test) {
