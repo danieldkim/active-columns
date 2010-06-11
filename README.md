@@ -15,6 +15,8 @@ Bridge](http://github.com/danieldkim/cassandra-node-bridge) and
 * Node.js >0.1.91
 * [Cassandra-Node Bridge](http://github.com/danieldkim/cassandra-node-bridge)
 * [Underscore.js](http://documentcloud.github.com/underscore/) 1.0.2
+* [node-async-testing](http://github.com/bentomas/node-async-testing) (optional, only needed to run tests)
+* [async](http://github.com/caolan/async) (optional, only needed to run tests)
 
 ## Object Model
 
