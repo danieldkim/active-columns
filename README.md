@@ -120,35 +120,23 @@ a new object and save it:
     var alice = Users1.new_object("alice", {
       city: "New York", state: "NY", last_login: 1271184168, sex: 'F'
     });
-    alice.save({
-      "success" : function(result) {
-        sys.puts("Alice saved.");
-      },
-      "error": function(mess) {
-        sys.puts("Error saving alice: " + mess);        
-      }
+    alice.save(function(err) {
+      if (err) sys.puts("Error saving alice: " + err);        
+      else sys.puts("Alice saved.");
     });
 
 ... and then at some point later after a successful save, find it, update it,
 and save it again:
 
-    Users1.find("alice", {
-      "success": function(alice) {
+    Users1.find("alice", function(err, alice) {
+      if (err) sys.puts("Error looking for alice:" + err );
+      else if (!alice) sys.puts("Could not find alice.");
+      else {
         alice.city = "Los Angeles";
-        alice.save({
-          "success" : function() {
-            sys.puts("Alice saved.  City is now: " + alice.city);
-          },
-          "error": function(mess) {
-            sys.puts("Error saving alice: " + mess);        
-          }
+        alice.save(function(err) {
+          if (err) sys.puts("Error saving alice: " + err);
+          else sys.puts("Alice saved.  City is now: " + alice.city);
         });
-      },
-      "not_found": function() {
-        sys.puts("Could not find alice.")
-      }
-      "error": function(mess) {
-        sys.puts("Error looking for alice:" + mess )
       }
     });
 
@@ -184,13 +172,9 @@ closely. Working with it is a bit more verbose:
       {name: "last_login", value: 1271184168},
       {name: "sex", value: 'F'}
     ]);
-    alice.save({
-      "success" : function(result) {
-        sys.puts("Alice saved.");
-      },
-      "error": function(mess) {
-        sys.puts("Error saving alice: " + mess);        
-      }
+    alice.save(function(err, result) {
+      if (err) sys.puts("Error saving alice: " + err);        
+      else sys.puts("Alice saved.");
     });
 
     ...
@@ -198,28 +182,22 @@ closely. Working with it is a bit more verbose:
     var predicate = {
       column_names: ["city", "state", "last_login", "sex"]
     }
-    Users1.find("alice", predicate, {
-      "success": function(alice) {
-        _.detect(my_user.columns, function(col) {
+    Users1.find("alice", function(err, alice) {
+      if (err) sys.puts("Error looking for alice:" + err );
+      else if (!alice) sys.puts("Could not find alice.");
+      else {
+        _.detect(alice.columns, function(col) {
           return col.name == "first_name";
         }).value = "Los Angeles";
-        alice.save({
-          "success" : function() {
-            var city = _.detect(my_user.columns, function(col) {
+        alice.save(function(err) {
+          if (err) sys.puts("Error saving alice: " + err);        
+          else {
+            var city = _.detect(alice.columns, function(col) {
               return col.name == "first_name";
             }).value;
             sys.puts("Alice saved.  City is now: " + city);
-          },
-          "error": function(mess) {
-            sys.puts("Error saving alice: " + mess);        
           }
         });
-      },
-      "not_found": function() {
-        sys.puts("Could not find alice.")
-      }
-      "error": function(mess) {
-        sys.puts("Error looking for alice:" + mess )
       }
     });
 
@@ -515,8 +493,9 @@ configuration specified in the *config* parameter. e.g.:
       column_names: ["city", "state", "last_login", "sex"],
       callbacks: {
         after_save_row: [
-          function(event_listeners, previous_version) {
+          function(previous_version, finished) {
             sys.puts("after_save_row for Users1 called!");
+            finished();
           }
         ]
       }      
@@ -577,13 +556,13 @@ methods. In the example above, "NY", 1271184169, 1271184168, "dave", "chuck",
 <code>save()</code> is recursive in a sense, though. calling <code>save()</code>
 on "NY" will cause all of its descendants to be saved.
 
-#### {column family}.find( key\_spec, [super\_column\_name,] [column\_name\_or\_predicate,] event\_listeners )
+#### {column family}.find( key\_spec, [super\_column\_name,] [column\_name\_or\_predicate,] callback )
 
 Finds objects within the {column family}.
 
 *key_spec* is either a single key, an array of keys, or a range (e.g.
-{start\_key: 'a', count: 10}). A hash in the final position will be taken as the
-*event_listeners* argument. Both are mandatory.
+{start\_key: 'a', count: 10}). The final argument will be taken as the
+*callback* argument.
 
 How the second argument is interpreted depends on the type of column family. If
 the column family is of type "Super" it will be taken as the
@@ -603,26 +582,42 @@ object with only the specified subcolumns selected. Specifying a list or range
 of keys will do something similiar, except that results will be returned as a
 hash of keys to objects in the case of a key list argument, e.g.:
 
-    StateLastLoginUsers.find(["NY", "NJ", "CT"], 1271184168, {
-      success: function(result) {
+    StateLastLoginUsers.find(["NY", "NJ", "CT"], { 
+        slice_range:{ 
+          start:1271184168, finish:'', reversed:false, count:10
+        }
+      }, function(err, result) {
+      if (err) { 
+        sys.puts("Error looking for users who logged in since 1271184168 in the tri-state area.");
+      } else {
         // returns a hash of keys to super column objects
         for (var state in result) {
           result[state].columns.forEach(function(user) {
-            sys.puts("User " + user._name + " in " + user.city + ", " + state +
-                       " has birthday on " + result[state]._name;
-          })
+            sys.puts("User " + user.id + " in " + user.city + ", " + state +
+                       " last logged in at " + result[state].id);
+          });
         }
-      },
-      error: function(mess) {
-        sys.puts("Error looking for users with birthdays on 1271184168 in the tri-state area.")
-      })
+      }
+    });
 
 In cases where <code>find()</code> would return a single object, i.e. a single
 *key* (plus other optional parameters) is specified, <code>find()</code> will
-emit a **"not\_found"** event. Add a "not\_found" handler to the
-*event\_listeners* hash if you wish to handle it.
+return <code>null</code> as the second parameter to the *callback*:
 
-#### {column\_family}.remove( key )
+    StateLastLoginUsers.find("NY", 1271184168, function(err, result) {
+      if (err) { 
+        sys.puts("Error looking for users who last logged in at 1271184168 in NY.");
+      } else if (!result) {
+        sys.puts("Could not find users who last logged in at 1271184168 in NY.");
+      } else {
+        result.columns.forEach(function(user) {
+          sys.puts("User " + user.id + " in " + user.city + " last logged in at " + result.id);
+        });
+      }
+    });
+
+
+#### {column\_family}.remove( key, callback )
 
 **Completely** removes the row object with given *key*, i.e. removes the entire
 row, all columns, from Cassandra.
@@ -631,8 +626,9 @@ row, all columns, from Cassandra.
 
 Adds the function *func* to the sequence of *name* callbacks.
 
-    Users1.add_callback("after_save_row", function(event_listeners, previous_version) {
+    Users1.add_callback("after_save_row", function(previous_version, finished) {
       sys.puts("after_save_row for Users1 called!");
+      finished();
     };
 
 #### {object}.get\_super\_column\_name()
@@ -640,19 +636,20 @@ Adds the function *func* to the sequence of *name* callbacks.
 Returns the name of the super column that this {object} lives under. Only
 applies to column objects under a super column.
 
-#### {object}.save( event\_listeners, delete\_missing\_columns=true )
+#### {object}.save( callback, delete\_missing\_columns=true )
 
-Saves {object}. Returns the "id" of the object as the first and only parameter
-to the "success" listener (in addition to setting it on the saved object). e.g.:
+Saves {object}. Returns the "id" of the object as the result argument to the
+*callback*. (in addition to setting it on the saved object). e.g.:
 
     var post = Posts.new_object({ title: "A  post title.", text: "This is a post."} );
-    post.save({
-      success: function(result) {
+    post.save(function(err, result) {
+      if (err) sys.puts("Error saving post: " + err);
+      else {
         sys.puts("id of post is " + result);
         sys.puts("id of post is " + post.id);
         sys.puts("id of post is " + post.key);
       }
-    })
+    });
 
 If <code>save()</code> succeeds, all timestamps of {object} will be updated with
 the new timestamp. This allows you to subsequently <code>destroy()</code> this
@@ -666,33 +663,41 @@ deleted. If you want to prevent this, you can pass false as the last argument to
 <code>save()</code>, after the event listeners hash. This is useful when you
 only want to update a small number of columns for a fixed-column-name object.
 
-#### {object}.destroy( event\_listeners )
+#### {object}.destroy( callback )
 
 Destroys {object}. Note: this only removes the columns represented in this
 {object} from Cassandra. To completely remove *all* columns of a row object from
 Cassandra use <code>{column family}.remove()</code>
 
-## Callbacks
+## Column Family Callbacks
 
 Since Cassandra data models tend to be highly denormalized, with cached copies
 of data stored in various places, and since "indices" are decoupled from the
 data they are indexing and must be updated manually when the source data
 changes, it would be handy to set up some code to automatically execute whenever
-you save or destroy an object. Active Columns allows you to configure various
-kinds of callbacks to be executed when objects are initialized, saved, found,
-and destroyed.
+you save or destroy an object within a given column family. Active Columns
+allows you to configure various kinds of callbacks to be executed when objects
+are initialized, saved, found, and destroyed.
 
 ### Sequence chaining
 
-For each kind of callback event, a sequence (array) of functions can be
-specified. Though the functions are asynchronous, and should emit "success" and
-"error" events, the execution of the functions for a given callback event on a
-given object will be *chained* and executed in order. If any callback in a
-sequence emits an "error" event, the chain will be halted.
+For each kind of column family callback event, a sequence (array) of functions
+can be specified. These functions will be passed another callback function, call
+it <code>finished</code>, to be called when it is done doing its thing. The
+<code>finished</code> function will accept an error object as its first
+argument.
+
+The <code>finished</code> function will always be the last argument to the
+column family callback. Some column family callbacks will also be passed a
+<code>previous_version</code> object as the first argument.
+
+The execution of the functions for a given callback event on a given object will
+be *chained* and executed in order. If any callback passes an error object on to
+the <code>finished</code> function the chain will be halted.
 
 ### Configuration
 
-Callbacks are configured on the column family, in the
+Column family callbacks are configured on the column family, in the
 <code>callbacks</code> property of the column family. Thus, they can be
 configured like so:
 
@@ -705,8 +710,9 @@ configured like so:
             column_names: ["city", "state", "last_login", "sex"],
             callbacks: {
               after_save_row: [
-                function(event_listeners, previous_version) {
+                function(previous_version, finished) {
                   sys.puts("after_save_row for Users1 called!");
+                  finished();
                 }
               ]
             }
@@ -718,18 +724,19 @@ configured like so:
 or like so:
 
     var Users1 = get_column_family("ActiveColumnsTest", "Users1");
-    Users1.add_callback("after_save_row", function(event_listeners, previous_version) {
+    Users1.add_callback("after_save_row", function(previous_version, finished) {
       sys.puts("after_save_row for Users1 called!");
+      finished();
     });
 
 ### Note on callback recursion
 
-Callbacks are currently not recursive. i.e, if you have callbacks defined at the
-column level, they will not be executed when you new\_object/save/find/destroy
-at the super column or row level. If you want that to happen you should
-implement a callback at the higher level that implements some sort of iteration
-over the callbacks at the lower levels. Active Columns may handle this for you
-one day, but it's not a high priority.
+Column family callbacks are currently not recursive. i.e, if you have callbacks
+defined at the column level, they will not be executed when you
+new\_object/save/find/destroy at the super column or row level. If you want that
+to happen you should implement a callback at the higher level that implements
+some sort of iteration over the callbacks at the lower levels. Active Columns
+may handle this for you one day, but it's not a high priority.
 
 ### Events
 
@@ -746,46 +753,46 @@ The initialized object can be accessed through the <code>this</code> variable.
 _**Note**: This is the one type of callback event that is executed
 **synchronously**._. Thus, these callbacks should not do any I/O and their usage
 should be reserved for simple things such as setting the prototype of an object,
-mixing in some methods, etc.
+mixing in some methods, etc.  They also do not receive any arguments.
 
-    Users1.add_callback("after_initialize", function(event_listeners, previous_version) {
+    Users1.add_callback("after_initialize", function() {
       Object.defineProperty(this, "last_login_date", {
         get: function() { return convert_seconds_to_date(last_login); },
         set: function(value) { last_login = convert_date_to_seconds(value); }
       })
     });
 
-#### before\_save\_{row|super_column|column} (event\_listeners, previous\_version)
+#### before\_save\_{row|super_column|column} (previous\_version, finished)
 
 These callbacks are called before any object in the column family is saved.
-*event\_listeners* is a hash containing functions to handle "success" and
-"error" conditions within the callback. *previous\_version* is a copy of this
-object corresponding to the previous saved version, before the the current save.
-*previous\_version* corresponds to the version of this object retrieved by
+*finished* is a function to be called when this callback's work is complete. It
+accepts an error object as the first parameter. *previous\_version* is a copy of
+this object corresponding to the previous saved version, before the the current
+save. *previous\_version* corresponds to the version of this object retrieved by
 <code>find()</code> if you have not saved it since retrieving it.
 *previous\_version* will be <code>null</code> if this is a new object that has
 not been saved before now. The saved/current version of the object can be
 accessed through the <code>this</code> variable.
 
-All callbacks in a sequence are executed in order. If any of them emit an
-"error" event, the chain will be halted, and the object will not be saved to the
-database. This makes *before\_save* callbacks a a good place to implement
-*validations*.
+All callbacks in a sequence are executed in order. If any of them pass an error
+object to the *finished* function, the chain will be halted, and the object will
+not be saved to the database. This makes *before\_save* callbacks a a good place
+to implement *validations*.
 
-    Users1.add_callback("before_save_row", function(event_listeners, previous_version) {
+    Users1.add_callback("before_save_row", function(previous_version, finished) {
       
       if (!valid_state(this.state) ) {
-        event_listeners.error(this.state + " is not a valid state.")
+        finished(new Error(this.state + " is not a valid state."));
       } else
-        event_listeners.success();
+        finished();
       }
     });
 
-#### after\_save\_{row|super_column|column} (event\_listeners, previous\_version)
+#### after\_save\_{row|super_column|column} (previous\_version, finished)
 
-This method is called after any object in the column family is saved.
-*event\_listeners* is a hash containing functions to handle "success" and
-"error" conditions within the callback. *previous\_version* is a copy of this
+This method is called after any object in the column family is saved. *finished*
+is a function to be called when this callback's work is complete. It accepts an
+error object as the first parameter. *previous\_version* is a copy of this
 object corresponding to the previous saved version, before the the current save.
 *previous\_version* corresponds to the version of this object retrieved by
 <code>find()</code> if you have not saved it since retrieving it.
@@ -793,23 +800,28 @@ object corresponding to the previous saved version, before the the current save.
 not been saved before now. The saved/current version of the object can be
 accessed through the <code>this</code> variable.
 
-    Users1.add_callback("after_save_row", function(event_listeners, previous_version) {
+All callbacks in a sequence are executed in order. If any of them pass an error
+object to the *finished* function, the chain will be halted and subsequent
+callbacks will not be executed. The error will be passed to the
+<code>save()</code> result callback.
+
+    Users1.add_callback("after_save_row", function(previous_version, finished) {
       // remove from StateUsers2 column family if new state is different
       if (previous_version && previous_version.state != this.state) {
-        StateUsers2.find(previous_version.state, previous_version._name, {
-          success: function(result) {
-            result.destroy({
-              error: function(mess) {
-                logger.error("Error destroying StateUsers2 object " + 
-                                previous_version.state + "/" + previous_version._name + 
-                                ":" + mess)
-              }
-            })
-          },
-          error: function(mess) {
-            logger.error("Error finding StateUsers2 object " + 
-                            previous_version.state + "/" + previous_version._name + 
-                            ": " + mess) 
+        StateUsers2.find(previous_version.state, previous_version._name, function(err, result) {
+            if (err) {
+              logger.error("Error finding StateUsers2 object " + 
+                              previous_version.state + "/" + previous_version._name + 
+                              ": " + err);
+              return;              
+            } else if (result) {
+              result.destroy(function(err) {
+                if (err) 
+                  logger.error("Error destroying StateUsers2 object " + 
+                                  previous_version.state + "/" + previous_version._name + 
+                                  ":" + err);
+              });              
+            }
           }
         })
       }
@@ -817,27 +829,27 @@ accessed through the <code>this</code> variable.
       var state_user = StateUsers2.new_object(this.state, {
         _name: this._name, city: this.city, sex: this.sex
       });
-      state_user.save({
-        error: function(mess) {
+      state_user.save(function(err) {
+        if (err)
           logger.error("Error creating StateUsers2 object " + 
-                          this.state + "/" + this._name + ": " + mess)           
-        }
+                          this.state + "/" + this._name + ": " + err);
       });
-      event_listeners.success();
+      finished();
     });
 
 
-#### after\_find\_{row|super_column|column} (event\_listeners)
+#### after\_find\_{row|super_column|column} (finished)
 
 *after\_find\_* callbacks are called by <code>{column\_family}.find()</code>,
 after an object is retrieved, and before any *after\_initialize\_* callbacks
-have been called on the object. *event\_listeners* is a hash containing
-functions to handle "success" and "error" conditions within the callback, the
-found object can be accessed through the <code>this</code> variable.
+have been called on the object. *finished* is a function to be called when this
+callback's work is complete. It accepts an error object as the first parameter.
+The found object can be accessed through the <code>this</code> variable.
 
-All callbacks in a sequence are executed in order. If any of them emit an
-"error" event, the chain will be halted, and an error event will be emitted by
-<code>find()</code>.
+All callbacks in a sequence are executed in order. If any of them pass an error
+object to the *finished* function, the chain will be halted and subsequent
+callbacks will not be executed. The error will be passed to the
+<code>find()</code> result callback.
 
 If <code>find()</code> is returning a collection of objects, the sequences will
 executed **in parallel** for each object. Thus it is possible that an "error"
@@ -850,32 +862,31 @@ with a problem that they solve that couldn't be handled by the
 I/O would you need to do after a <code>find()</code>? Well, anyway, I
 implemented them and they're here._
 
-#### after\_destroy\_{row|super_column|object} (event\_listeners)
+#### after\_destroy\_{row|super_column|object} (finished)
 
 This method is called after any row object in the column family is saved.
-*event\_listeners* is a hash containing functions to handle "success" and
-"error" conditions within the callback. The destroyed object can be accessed
-through the <code>this</code> variable.
+*finished* is a function to be called when this callback's work is complete. It
+accepts an error object as the first parameter.The destroyed object can be
+accessed through the <code>this</code> variable.
 
     // remove corresponding StateUsers2 object after we destroy a user object
-    Users1.add_callback("after_destroy_row", function(event_listeners, previous_version) {
-      StateUsers2.find(this.state, this._name, {
-        success: function(result) {
-          result.destroy({
-            error: function(mess) {
-              logger.error("Error destroying StateUsers2 object " + 
-                              previous_version.state + "/" + previous_version._name + 
-                              ":" + mess)
-            }
-          })
-        },
-        error: function(mess) {
+    Users1.add_callback("after_destroy_row", function(previous_version, finished) {
+      StateUsers2.find(this.state, this._name, function(err, result) {
+        if (err) {
           logger.error("Error finding StateUsers2 object " + 
                           previous_version.state + "/" + previous_version._name + 
-                          ": " + mess) 
+                          ": " + err);
+          return;
+        } else if (result) {
+          result.destroy(function(err) {
+            if(err)
+              logger.error("Error destroying StateUsers2 object " + 
+                              previous_version.state + "/" + previous_version._name + 
+                              ":" + err);
+          });
         }
       })
-      event_listeners.success();
+      finished;
     });
 
 ## Future Work

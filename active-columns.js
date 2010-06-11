@@ -230,10 +230,10 @@ function remove_object(keyspace, column_family, key, super_column_name, column_n
       var error_mess = "Error trying to remove " + 
         path_s(keyspace, column_family, key, super_column_name, column_name) + 
         ":" + err;
-      callback(new Error(error_mess));
+      if (callback) callback(new Error(error_mess));
       return;      
     } else  {
-      callback(null, result);
+      if (callback) callback(null, result);
     }
     
   });
@@ -601,7 +601,7 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, save_ca
         var error_mess = "Could not get UUID for key when attempting to save object under " + 
           path_s(keyspace, column_family, key) + ':'  + err;
         logger.error(error_mess);
-        save_callback(new Error(error_mess));
+        if (save_callback) save_callback(new Error(error_mess));
         return;
       }
       o.key = key = result[0];
@@ -620,7 +620,7 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, save_ca
           var error_mess = "Could not get UUID for id when attempting to save/destroy object under " +
                             path_s(keyspace, column_family, key) + ': ' + err;
           logger.error(error_mess);
-          save_callback(new Error(error_mess));
+          if (save_callback) save_callback(new Error(error_mess));
           return;          
         }
         o._name = result[0];
@@ -637,7 +637,7 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, save_ca
         do_save();
       }, function(mess) {
         var error_mess = "Error in before_save callbacks: " + mess;
-        save_callback(new Error(error_mess));        
+        if (save_callback) save_callback(new Error(error_mess));        
       },
       true, previous_version);
     } else {
@@ -656,12 +656,12 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, save_ca
         var error_mess = "Error saving/destroying object under '" + 
                           path_s(keyspace, column_family, key) + ": " + err;
         logger.error(error_mess);
-        save_callback(new Error(error_mess));
+        if (save_callback) save_callback(new Error(error_mess));
         return;
       }
       if (timestamp_func) timestamp_func(result);
       if (update_last_saved) o.update_last_saved();
-      save_callback(null, o.id);
+      if (save_callback) save_callback(null, o.id);
     });
   }
 }
