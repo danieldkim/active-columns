@@ -23,27 +23,24 @@ users1Suite.teardown(function(finished) {
   this.Users1.callbacks = {};
   var destroy_alice = alice && alice.destroy;
   var destroy_bob = bob && bob.destroy;
-  if (destroy_alice) {
-    alice.destroy({
-      success: function(result) {
-        logger.info("Alice destroyed in teardown.")
+  try {
+    if (destroy_alice) {
+      alice.destroy(function(err, result) {
+        if (err) assert.ok(false, "error destroying alice." + err);
+        else logger.info("Alice destroyed in teardown.");
         finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying alice." + mess)
-      }        
-    });
-  } 
-  if (destroy_bob) {
-    bob.destroy({
-      success: function(result) {
-        logger.info("Bob destroyed in teardown.")
+      });
+    } 
+    if (destroy_bob) {
+      bob.destroy(function(err, result) {
+        if (err) assert.ok(false, "error destroying bob." + err);
+        else logger.info("Bob destroyed in teardown.");
         finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying bob." + mess)
-      }        
-    });
+      });
+    }
+  } catch (e) {
+    logger.info("Caught exception trying to destroy() in teardown." + e);
+    finished();
   }
   if (! (destroy_alice || destroy_bob)) finished();
 });
@@ -61,28 +58,20 @@ users2Suite.teardown(function(finished) {
   var destroy_alice = alice && alice.destroy;
   var destroy_bob = bob && bob.destroy;
   if (destroy_alice) {
-    alice.destroy({
-      success: function(result) {
-        logger.info("Alice destroyed in 25.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying alice." + mess)
-      }        
+    alice.destroy(function(err, result) {
+      if (err) assert.ok(false, "error destroying alice." + err);
+      else logger.info("Alice destroyed in teardown.");
+      finished();
+    });
+  } 
+  if (destroy_bob) {
+    bob.destroy(function(err, result) {
+      if (err) assert.ok(false, "error destroying bob." + err);
+      else logger.info("Bob destroyed in teardown.");
+      finished();
     });
   }
-  if (destroy_bob) {
-    bob.destroy({
-      success: function(result) {
-        logger.info("Bob destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying bob." + mess)
-      }        
-    }); 
-  }
-  if (! (destroy_alice || destroy_bob)) finished();  
+  if (! (destroy_alice || destroy_bob)) finished();
 });
 users2Suite.addTests({
   "Test Users2 column family": test_Users2
@@ -94,14 +83,10 @@ stateUsersUserLevelSuite.teardown(function(finished) {
   this.StateUsersX.callbacks = {};
   var ny_alice = this.ny_alice;
   if (ny_alice && ny_alice.destroy) {
-    ny_alice.destroy({
-      success: function(result) {
-        logger.info("ny_alice destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying ny_alice." + mess)
-      }        
+    ny_alice.destroy(function(err, result) {
+      if (err) assert.ok(false, "error destroying ny_alice." + err);
+      else logger.info("ny_alice destroyed in teardown.");
+      finished();        
     });
   } else {
     finished();
@@ -118,14 +103,10 @@ stateUsersStateLevelSuite.teardown(function(finished) {
   this.StateUsersX.callbacks = {}
   var ny = this.ny;
   if (ny && ny.destroy) {
-    ny.destroy({
-      success: function(result) {
-        logger.info("ny destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying ny." + mess)
-      }        
+    ny.destroy(function(err, result) {
+      if (err) assert.ok(false, "error destroying ny." + err);
+      else logger.info("ny destroyed in teardown.");
+      finished();
     });
   } else {
     finished();
@@ -142,14 +123,10 @@ stateLastLoginUsersUserLevelSuite.teardown(function(finished) {
   this.StateLastLoginUsers.callbacks = {}
   var ny_1271184168_alice = this.ny_1271184168_alice;
   if (ny_1271184168_alice && ny_1271184168_alice.destroy) {
-    ny_1271184168_alice.destroy({
-      success: function(result) {
-        logger.info("ny_1271184168_alice destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying ny_1271184168_alice." + mess)
-      }        
+    ny_1271184168_alice.destroy(function(err, result) {
+      if(err) assert.ok(false, "error destroying ny_1271184168_alice." + err);
+      else logger.info("ny_1271184168_alice destroyed in teardown.");
+      finished();
     });
   } else {
     finished();
@@ -165,14 +142,10 @@ stateLastLoginUsersLastLoginLevelSuite.teardown(function(finished) {
   var ny_1271184168 = this.ny_1271184168;
   this.StateLastLoginUsers.callbacks = {}
   if (ny_1271184168 && ny_1271184168.destroy) {
-    ny_1271184168.destroy({
-      success: function(result) {
-        logger.info("ny_1271184168 destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying ny_1271184168." + mess)
-      }        
+    ny_1271184168.destroy(function(err, result) {
+      if(err) assert.ok(false, "error destroying ny_1271184168." + err);
+      else logger.info("ny_1271184168 destroyed in teardown.");
+      finished();
     });
   } else {
     finished();
@@ -188,14 +161,10 @@ stateLastLoginUsersStateLevelSuite.teardown(function(finished) {
   var ny = this.ny;
   this.StateLastLoginUsers.callbacks = {}
   if (ny && ny.destroy) {
-    ny.destroy({
-      success: function(result) {
-        logger.info("ny destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying ny." + mess)
-      }        
+    ny.destroy(function(err, result) {
+      if (err) assert.ok(false, "error destroying ny." + err);
+      else logger.info("ny destroyed in teardown.");
+      finished();
     });
   } else {
     finished();
@@ -210,14 +179,10 @@ var columnValueTypeSuite = new TestSuite();
 columnValueTypeSuite.teardown(function(finished) {
   var o = this.o;
   if (o.destroy) {
-    o.destroy({
-      success: function(result) {
-        logger.info("Object destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying object:" + mess)
-      }        
+    o.destroy(function(err, result) {
+      if (err) assert.ok(false, "error destroying object:" + err);
+      else logger.info("Object destroyed in teardown.");
+      finished();
     });
   } else {
     finished();
@@ -235,25 +200,17 @@ autoIdGenerationSuite.teardown(function (finished) {
   var destroy_alice = alice && alice.destroy;
   var destroy_bob = bob && bob.destroy;
   if (destroy_alice) {
-    alice.destroy({
-      success: function(result) {
-        logger.info("Alice destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying alice." + mess)
-      }        
+    alice.destroy(function(err, result) {
+      if (err) assert.ok(false, "error destroying alice." + err);
+      else logger.info("Alice destroyed in teardown.");
+      finished();
     });
-  }
+  } 
   if (destroy_bob) {
-    bob.destroy({
-      success: function(result) {
-        logger.info("Bob destroyed in teardown.")
-        finished();
-      },
-      error: function(mess) {
-        assert.ok(false, "error destroying bob." + mess)
-      }        
+    bob.destroy(function(err, result) {
+      if (err) assert.ok(false, "error destroying bob." + err);
+      else logger.info("Bob destroyed in teardown.");
+      finished();
     });
   }
   if (! (destroy_alice || destroy_bob)) finished();
@@ -281,15 +238,12 @@ function test_Users1(assert, finished, test) {
   var Users1 = test.Users1;
   var alice;
   
-   // Users1.find("alice", {
-   //   success: function(alice) { alice.destroy({success: function() {start();}}); }
-   // })
   start();
   
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
-    Users1.find("alice", unsuccessful_find_listeners("alice", not_found_action));    
+    Users1.find("alice", create_unsuccessful_find_callback("alice", not_found_action));    
   }
   
   function unsuccessful_destroy() {
@@ -330,14 +284,12 @@ function test_Users1(assert, finished, test) {
         event_listeners.success();
       });
     });
-    alice.save({
-     success: function(result) {
+    alice.save(function(err, result) {
+      if (err) assert.ok(false, "Error trying to save alice: " + err);
+      else {
        logger.info("Alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
        successful_find();
-     },
-     error: function(mess) {
-       assert.ok(false, "Error trying to save alice: " + mess)
      }
     });    
   }
@@ -347,20 +299,16 @@ function test_Users1(assert, finished, test) {
     var find_cb_names = ["after_find_row", "after_initialize_row"]
     var tcm = tokenCallbackManager();
     tcm.add(Users1, find_cb_names, cb_token);
-    Users1.find("alice", {
-      success: function(result) {
+    Users1.find("alice", function(err, result) {
+      if (err) assert.ok(false, "Error looking for alice:" + err );
+      else if (!result) assert.ok(false, "Could not find alice.");
+      else {
         alice = test.alice = result;
         assert_alice(alice, "New York");
         assert_alice(alice._last_saved, "New York");
         tcm.assert(find_cb_names, cb_token);
         logger.info("Alice found successfully and save result validated.");
         save_after_find();
-      },
-      not_found: function() {
-        assert.ok(false, "Could not find alice.")
-      },
-      error: function(mess) {
-        assert.ok(false, "Error looking for alice:" + mess )
       }
     });
     
@@ -390,24 +338,20 @@ function test_Users1(assert, finished, test) {
         event_listeners.success();
       });
     });
-    alice.save({
-      success: function(result) {
+    alice.save(function(err, result) {
+      if (err) assert.ok(false, "Error saving alice: " + err);        
+      else {
         tcm.assert(save_cb_names, cb_token);
-        Users1.find("alice", {
-          success: function(result) {
+        Users1.find("alice", function(err, result) {
+          if (err) assert.ok(false, "Error finding alice.");
+          else {
             logger.info("Alice saved successfully after find.");
             alice = test.alice = result;
             assert.equal("Los Angeles", alice.city);
             Users1.callbacks = {}
             add_bob_to_the_mix();
-          },
-          error: function(mess) {
-            assert.ok(false, "Error finding alice.")
           }
         });
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving alice: " + mess);        
       }
     });
   }
@@ -416,13 +360,11 @@ function test_Users1(assert, finished, test) {
     bob = test.bob = Users1.new_object("bob", {
      city: "Jackson Heights", state: "NY", last_login: 1271184168, sex: "M"
     });
-    bob.save({
-      success: function(result) {
+    bob.save(function(err, result) {
+      if (err) assert.ok(false, "Error saving bob: " + err);        
+      else {
         logger.info("Saved bob successfully.");
         find_alice_and_bob_with_range();
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving bob: " + mess);        
       }
     });
   }
@@ -442,8 +384,9 @@ function test_Users1(assert, finished, test) {
   }
   
   function find_alice_and_bob(keyspec, next) {
-    Users1.find(keyspec, {
-      success: function(results) {
+    Users1.find(keyspec, function(err, results) {
+      if (err) assert.ok(false, "Error finding bob and alice: " + err);        
+      else {
         assert.equal(2, Object.keys(results).length);
         _.forEach(results, function(res, k) {
           if (res.key == "alice") {
@@ -459,9 +402,6 @@ function test_Users1(assert, finished, test) {
           }
         })
         next();
-      },
-      error: function(mess) {
-        assert.ok(false, "Error finding bob and alice: " + mess);        
       }
     })
   }
@@ -483,15 +423,13 @@ function test_Users1(assert, finished, test) {
         assert.strictEqual(alice, this);
         event_listeners.success();
       });
-      alice.destroy({
-        success: function() {
+      alice.destroy(function(err) {
+        if (err) assert.ok(false, "Error destroying alice: " + err);
+        else {
           Users1.callbacks = {}
           assert.equal(cb_token, alice.after_destroy_token);
           logger.info("Successfully destroyed alice.");
           unsuccessful_find(finished);
-        },
-        error: function(mess) {          
-          assert.ok(false, "Error destroying alice: " + mess)
         }
       });
     } catch (e) {
@@ -520,15 +458,12 @@ function test_Users2(assert, finished, test) {
   ];
   var alice, bob;
   
-   // Users2.find("alice", {column_names:["city", "state", "last_login", "sex"]}, {
-   //    success: function(alice) { alice.destroy({success: function() {start();}}); }
-   // })
   start();
     
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
-    Users2.find("alice", predicate, unsuccessful_find_listeners("alice", not_found_action))    
+    Users2.find("alice", predicate, create_unsuccessful_find_callback("alice", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -567,14 +502,12 @@ function test_Users2(assert, finished, test) {
         event_listeners.success();
       });
     });
-    alice.save({
-     success: function(result) {
+    alice.save(function(err, result) {
+      if (err) assert.ok(false, "Error trying to save alice: " + err);
+      else {
        logger.info("Alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
        successful_find();
-     },
-     error: function(mess) {
-       assert.ok(false, "Error trying to save alice: " + mess)
      }
     });    
   }
@@ -584,19 +517,15 @@ function test_Users2(assert, finished, test) {
     var tcm = tokenCallbackManager();
     var find_cb_names = ["after_find_row", "after_initialize_row"];
     tcm.add(Users2, find_cb_names, cb_token);
-    Users2.find("alice", predicate, {
-      success: function(result) {
+    Users2.find("alice", predicate, function(err, result) {
+      if (err) assert.ok(false, "Error looking for alice:" + err );
+      else if (!result) assert.ok(false, "Could not find alice.");
+      else {
         alice = test.alice = result;
         assert_alice(alice, "New York");
         tcm.assert(find_cb_names, cb_token);
         logger.info("Alice found successfully and save result validated.");
         save_after_find();
-      },
-      not_found: function() {
-        assert.ok(false, "Could not find alice.")
-      },
-      error: function(mess) {
-        assert.ok(false, "Error looking for alice:" + mess )
       }
     });
     
@@ -628,45 +557,40 @@ function test_Users2(assert, finished, test) {
         event_listeners.success();
       });
     });
-    alice.save({
-      success: function(result) {
+    alice.save(function(err, result) {
+      if (err) assert.ok(false, "Error saving alice: " + err);        
+      else {
         tcm.assert(save_cb_names, cb_token);
         logger.info("Alice saved successfully after find.");
-        Users2.find("alice", predicate, {
-          success: function(result) {
+        Users2.find("alice", predicate, function(err, result) {
+          if (err) assert.ok(false, "Error finding alice.");
+          else {
             alice = test.alice = result;
             assert_alice(alice, "Los Angeles");
             logger.info("Save after find validated.");
             Users2.callbacks = {};
             add_bob_to_the_mix();
-          },
-          error: function(mess) {
-            assert.ok(false, "Error finding alice.")
           }
         });
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving alice: " + mess);        
       }
     });
   }
    
   function add_bob_to_the_mix() {
     bob = test.bob = Users2.new_object("bob", bob_columns);
-    bob.save({
-      success: function(result) {
+    bob.save(function(err, result) {
+      if (err) assert.ok(false, "Error saving bob: " + err);        
+      else {
         logger.info("Saved bob successfully.");
         find_alice_and_bob();
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving bob: " + mess);        
       }
     });
   }
   
   function find_alice_and_bob() {
-    Users2.find({start_key:'', end_key:'', count: 100}, predicate, {
-      success: function(results) {
+    Users2.find({start_key:'', end_key:'', count: 100}, predicate, function(err, results) {
+      if (err) assert.ok(false, "Error finding bob and alice: " + err);        
+      else {
         assert.equal(2, results.length);
         results.forEach(function(res) {
           if (res.key == "alice") {
@@ -680,9 +604,6 @@ function test_Users2(assert, finished, test) {
           }
         })
         successful_destroy();
-      },
-      error: function(mess) {
-        assert.ok(false, "Error finding bob and alice: " + mess);        
       }
     })
   }
@@ -705,15 +626,13 @@ function test_Users2(assert, finished, test) {
         assert.strictEqual(alice, this);
         event_listeners.success();
       });
-      alice.destroy({
-        success: function() {
+      alice.destroy(function(err) {
+        if (err) assert.ok(false, "Error destroying alice: " + err);
+        else {
           logger.info("Successfully destroyed alice.")
           assert.equal(cb_token, alice.after_destroy_token);
           Users2.callbacks = {};
           unsuccessful_find(finished);
-        },
-        error: function(mess) {          
-          assert.ok(false, "Error destroying alice: " + mess)
         }
       });
     } catch (e) {
@@ -748,17 +667,12 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
   var alice_new_city = "Los Angeles"
   var ny_alice;
   
-   // StateUsersX.find("NY", "alice", {
-   //   success: function(ny_alice) {
-   //     ny_alice.destroy({success: function() {start();}}); 
-   //   }
-   // })
   start();
   
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
-    StateUsersX.find("NY", "alice", unsuccessful_find_listeners("ny_alice", not_found_action))    
+    StateUsersX.find("NY", "alice", create_unsuccessful_find_callback("ny_alice", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -796,14 +710,12 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
         event_listeners.success();
       });
     });
-    ny_alice.save({
-     success: function(result) {
+    ny_alice.save(function(err, result) {
+      if (err) assert.ok(false, "Error trying to save ny_alice: " + err);
+      else {
        logger.info("ny_alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
        successful_find();
-     },
-     error: function(mess) {
-       assert.ok(false, "Error trying to save ny_alice: " + mess)
      }
     });    
   }
@@ -813,19 +725,15 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
     var tcm = tokenCallbackManager();
     var find_cb_names = ["after_find_" + callback_level, "after_initialize_" + callback_level];
     tcm.add(StateUsersX, find_cb_names, cb_token);
-    StateUsersX.find("NY", "alice", {
-      success: function(result) {
+    StateUsersX.find("NY", "alice", function(err, result) {
+      if (err) assert.ok(false, "Error looking for ny_alice:" + err );
+      else if (!result) assert.ok(false, "Could not find ny_alice.");
+      else {
         ny_alice = test.ny_alice = result;
         assert_ny_alice(ny_alice, "New York");
         tcm.assert(find_cb_names, cb_token);
         logger.info("ny_alice found successfully and save result validated.");
         save_after_find();
-      },
-      not_found: function() {
-        assert.ok(false, "Could not find ny_alice.")
-      },
-      error: function(mess) {
-        assert.ok(false, "Error looking for ny_alice:" + mess )
       }
     });
     
@@ -852,23 +760,19 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
       });
     });
     ny_alice.city = alice_new_city
-    ny_alice.save({
-      success: function(result) {
+    ny_alice.save(function(err, result) {
+      if (err) assert.ok(false, "Error saving ny_alice: " + err);        
+      else {
         tcm.assert(save_cb_names, cb_token);
-        StateUsersX.find("NY", "alice", {
-          success: function(result) {
+        StateUsersX.find("NY", "alice", function(err, result) {
+          if (err) assert.ok(false, "Error finding ny_alice.");
+          else {
             ny_alice = test.ny_alice = result;
             assert_ny_alice(ny_alice, alice_new_city);
             logger.info("ny_alice saved successfully and result validated after find.");
             successful_destroy();
-          },
-          error: function(mess) {
-            assert.ok(false, "Error finding ny_alice.")
           }
         });
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving ny_alice: " + mess);        
       }
     });
   }
@@ -881,15 +785,13 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
         assert.strictEqual(ny_alice, this);
         event_listeners.success();
       });
-      ny_alice.destroy({
-        success: function() {
+      ny_alice.destroy(function(err) {
+        if (err) assert.ok(false, "Error destroying ny_alice: " + err);
+        else {
           StateUsersX.callbacks = {}
           assert.equal(cb_token, ny_alice.after_destroy_token);
           logger.info("Successfully destroyed ny_alice.")
           unsuccessful_find(finished);
-        },
-        error: function(mess) {          
-          assert.ok(false, "Error destroying ny_alice: " + mess)
         }
       });
     } catch (e) {
@@ -910,17 +812,12 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
   var bob_new_city = "San Francisco"
   var ny;
   
-   // StateUsersX.find("NY", column_predicate, {
-   //   success: function(ny) {
-   //     ny.destroy({success: function() {start();}}); 
-   //   }
-   // })
   start();
   
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
-    StateUsersX.find("NY", column_predicate, unsuccessful_find_listeners("ny", not_found_action))    
+    StateUsersX.find("NY", column_predicate, create_unsuccessful_find_callback("ny", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -962,14 +859,12 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
         event_listeners.success();
       });
     });
-    ny.save({
-     success: function(result) {
+    ny.save(function(err, result) {
+      if (err) assert.ok(false, "Error trying to save ny: " + err);
+      else {
        logger.info("ny saved successfully.");
        tcm.assert(save_cb_names, cb_token);
        successful_find();
-     },
-     error: function(mess) {
-       assert.ok(false, "Error trying to save ny: " + mess)
      }
     });    
   }
@@ -979,8 +874,10 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
     var tcm = tokenCallbackManager();
     var find_cb_names = ["after_find_row", "after_initialize_row"]
     tcm.add(StateUsersX, find_cb_names, cb_token);
-    StateUsersX.find("NY", column_predicate, {
-      success: function(result) {
+    StateUsersX.find("NY", column_predicate, function(err, result) {
+      if (err) assert.ok(false, "Error looking for ny:" + err );
+      else if (!result) assert.ok(false, "Could not find ny.");
+      else {      
         ny = test.ny = result;
         assert.equal(2, ny.columns.length);
         tcm.assert(find_cb_names, cb_token);
@@ -990,12 +887,6 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
         assert_ny_bob(ny_bob, "Jackson Heights");
         logger.info("ny found successfully and save result validated.");
         save_after_find();
-      },
-      not_found: function() {
-        assert.ok(false, "Could not find ny.")
-      },
-      error: function(mess) {
-        assert.ok(false, "Error looking for ny:" + mess )
       }
     });
     
@@ -1030,11 +921,13 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
         event_listeners.success();
       });
     });
-    ny.save({
-      success: function(result) {
+    ny.save(function(err, result) {
+      if (err) assert.ok(false, "Error finding ny.");
+      else {
         tcm.assert(save_cb_names, cb_token);
-        StateUsersX.find("NY", column_predicate, {
-          success: function(result) {
+        StateUsersX.find("NY", column_predicate, function(err, result) {
+          if (err) assert.ok(false, "Error finding ny.");
+          else {
             ny = test.ny = result;
             ny_alice = test.ny_alice = result.columns[0];
             ny_bob = test.ny_bob = result.columns[1];
@@ -1042,14 +935,8 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
             assert_ny_bob(ny_bob, bob_new_city);
             logger.info("ny saved successfully and result validated after find.");
             successful_destroy();
-          },
-          error: function(mess) {
-            assert.ok(false, "Error finding ny.")
           }
         });
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving ny: " + mess);        
       }
     });
   }
@@ -1062,15 +949,13 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
         assert.strictEqual(ny, this);
         event_listeners.success();
       });
-      ny.destroy({
-        success: function() {
+      ny.destroy(function(err) {
+        if (err) assert.ok(false, "Error destroying ny: " + err);
+        else {        
           logger.info("Successfully destroyed ny.")
           StateUsersX.callbacks = {}
           assert.equal(cb_token, ny.after_destroy_token);
           unsuccessful_find(finished);
-        },
-        error: function(mess) {          
-          assert.ok(false, "Error destroying ny: " + mess)
         }
       });
     } catch (e) {
@@ -1089,25 +974,13 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
   var alice_new_city = "Los Angeles";
   var ny_1271184168_alice;
   
-   // StateLastLoginUsers.find("NY", 1271184168, "alice", {
-   //   success: function(ny_1271184168_alice) {
-   //     ny_1271184168_alice.destroy({
-   //       success: function() {
-   //         start();
-   //       },
-   //       error: function(mess) {
-   //         assert.ok(false, "Error destroying ny_1271184168_alice: " + mess)
-   //       }
-   //     }); 
-   //   })
-   // }
   start();
   
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
     StateLastLoginUsers.find("NY", 1271184168, "alice", 
-      unsuccessful_find_listeners("ny_1271184168_alice", not_found_action));
+      create_unsuccessful_find_callback("ny_1271184168_alice", not_found_action));
   }
   
   function unsuccessful_destroy() {
@@ -1146,14 +1019,12 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
         event_listeners.success();
       });
     });
-    ny_1271184168_alice.save({
-     success: function(result) {
+    ny_1271184168_alice.save(function(err, result) {
+      if (err) assert.ok(false, "Error trying to save ny_1271184168_alice: " + err);
+      else {      
        logger.info("ny_1271184168_alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
        successful_find();
-     },
-     error: function(mess) {
-       assert.ok(false, "Error trying to save ny_1271184168_alice: " + mess)
      }
     });    
   }
@@ -1163,19 +1034,15 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
     var tcm = tokenCallbackManager();
     var find_cb_names = ["after_find_column", "after_initialize_column"];
     tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
-    StateLastLoginUsers.find("NY", 1271184168, "alice", {
-      success: function(result) {
+    StateLastLoginUsers.find("NY", 1271184168, "alice", function(err, result) {
+      if (err) assert.ok(false, "Error looking for ny_1271184168_alice:" + err );
+      else if (!result) assert.ok(false, "Could not find ny_1271184168_alice.");
+      else {
         ny_1271184168_alice = test.ny_1271184168_alice =  result;
         assert_ny_1271184168_alice(ny_1271184168_alice, "New York");
         tcm.assert(find_cb_names, cb_token);
         logger.info("ny_1271184168_alice found successfully and save result validated.");
         save_after_find();
-      },
-      not_found: function() {
-        assert.ok(false, "Could not find ny_1271184168_alice.")
-      },
-      error: function(mess) {
-        assert.ok(false, "Error looking for ny_1271184168_alice:" + mess )
       }
     });
     
@@ -1202,23 +1069,19 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
       });
     });
     ny_1271184168_alice.city = alice_new_city
-    ny_1271184168_alice.save({
-      success: function(result) {
+    ny_1271184168_alice.save(function(err, result) {
+      if (err) assert.ok(false, "Error saving ny_1271184168_alice: " + err);        
+      else {
         tcm.assert(save_cb_names, cb_token);
-        StateLastLoginUsers.find("NY", 1271184168, "alice", {
-          success: function(result) {
+        StateLastLoginUsers.find("NY", 1271184168, "alice", function(err, result) {
+          if (err) assert.ok(false, "Error finding ny_1271184168_alice.");
+          else {
             ny_1271184168_alice = test.ny_1271184168_alice = result;
             assert_ny_1271184168_alice(ny_1271184168_alice, alice_new_city);
             logger.info("ny_1271184168_alice saved successfully and result validated after find.");
             successful_destroy();
-          },
-          error: function(mess) {
-            assert.ok(false, "Error finding ny_1271184168_alice.")
           }
         });
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving ny_1271184168_alice: " + mess);        
       }
     });
   }
@@ -1231,15 +1094,13 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
         assert.strictEqual(ny_1271184168_alice, this);
         event_listeners.success();
       });
-      ny_1271184168_alice.destroy({
-        success: function() {
+      ny_1271184168_alice.destroy(function(err) {
+        if (err) assert.ok(false, "Error destroying ny_1271184168_alice: " + err);
+        else {
           logger.info("Successfully destroyed ny_1271184168_alice.")
           StateLastLoginUsers.callbacks = {}
           assert.equal(cb_token, ny_1271184168_alice.after_destroy_token);
           unsuccessful_find(finished);
-        },
-        error: function(mess) {          
-          assert.ok(false, "Error destroying ny_1271184168_alice: " + mess)
         }
       });
     } catch (e) {
@@ -1260,18 +1121,13 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
   var bob_new_city = "San Francisco"
   var ny_1271184168;
   
-   // StateLastLoginUsers.find("NY", 1271184168, column_predicate, {
-   //   success: function(ny_1271184168) {
-   //     ny_1271184168.destroy({success: function() {start();}}); 
-   //   }
-   // })
   start();
   
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
     StateLastLoginUsers.find("NY", 1271184168, column_predicate,
-      unsuccessful_find_listeners("ny_1271184168", not_found_action))    
+      create_unsuccessful_find_callback("ny_1271184168", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -1311,14 +1167,12 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
         event_listeners.success();
       });
     });
-    ny_1271184168.save({
-     success: function(result) {
+    ny_1271184168.save(function(err, result) {
+      if (err) assert.ok(false, "Error trying to save ny_1271184168: " + err);
+      else {
        tcm.assert(save_cb_names, cb_token);
        logger.info("ny_1271184168 saved successfully.");
        successful_find();
-     },
-     error: function(mess) {
-       assert.ok(false, "Error trying to save ny_1271184168: " + mess)
      }
     });    
   }
@@ -1328,19 +1182,15 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
     var tcm = tokenCallbackManager();
     var find_cb_names = ["after_find_super_column", "after_initialize_super_column"]
     tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
-    StateLastLoginUsers.find("NY", 1271184168, column_predicate, {
-      success: function(result) {
+    StateLastLoginUsers.find("NY", 1271184168, column_predicate, function(err, result) {
+      if (err) assert.ok(false, "Error looking for ny_1271184168:" + err );
+      else if (!result) assert.ok(false, "Could not find ny_1271184168.");
+      else {
         ny_1271184168 = test.ny_1271184168 = result;
         assert_ny_1271184168(ny_1271184168, 0, "New York", 1, "Jackson Heights");
         tcm.assert(find_cb_names, cb_token);
         logger.info("ny_1271184168 found successfully and save result validated.");
         save_after_find();
-      },
-      not_found: function() {
-        assert.ok(false, "Could not find ny_1271184168.")
-      },
-      error: function(mess) {
-        assert.ok(false, "Error looking for ny_1271184168:" + mess )
       }
     });
     
@@ -1379,23 +1229,19 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
     });
     ny_1271184168.columns[0].city = alice_new_city
     ny_1271184168.columns[1].city = bob_new_city
-    ny_1271184168.save({
-      success: function(result) {
+    ny_1271184168.save(function(err, result) {
+      if (err) assert.ok(false, "Error saving ny_1271184168: " + err);        
+      else {
         tcm.assert(save_cb_names, cb_token);
-        StateLastLoginUsers.find("NY", 1271184168, column_predicate, {
-          success: function(result) {
+        StateLastLoginUsers.find("NY", 1271184168, column_predicate, function(err, result) {
+          if (err) assert.ok(false, "Error finding ny_1271184168.");
+          else {
             ny_1271184168 = test.ny_1271184168 = result;
             assert_ny_1271184168(ny_1271184168, 0, alice_new_city, 1, bob_new_city);
             logger.info("ny_1271184168 saved successfully and result validated after find.");
             successful_destroy();
-          },
-          error: function(mess) {
-            assert.ok(false, "Error finding ny_1271184168.")
           }
         });
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving ny_1271184168: " + mess);        
       }
     });
   }
@@ -1408,15 +1254,13 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
         assert.strictEqual(ny_1271184168, this);
         event_listeners.success();
       });
-      ny_1271184168.destroy({
-        success: function() {
+      ny_1271184168.destroy(function(err) {
+        if (err) assert.ok(false, "Error destroying ny_1271184168: " + err);
+        else {
           logger.info("Successfully destroyed ny_1271184168.")
           StateLastLoginUsers.callbacks = {}
           assert.equal(cb_token, ny_1271184168.after_destroy_token);
           unsuccessful_find( finished );
-        },
-        error: function(mess) {          
-          assert.ok(false, "Error destroying ny_1271184168: " + mess)
         }
       });
     } catch (e) {
@@ -1441,18 +1285,13 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
   var chuck_new_city = "Seattle"
   var dave_new_city = "Portland"
   
-   // StateLastLoginUsers.find("NY", column_predicate, {
-   //   success: function(ny) {
-   //     ny.destroy({success: function() {start();}}); 
-   //   }
-   // })
   start();
   
   function start() { unsuccessful_find(unsuccessful_destroy); };
   
   function unsuccessful_find(not_found_action) {
     StateLastLoginUsers.find("NY", column_predicate, 
-      unsuccessful_find_listeners("ny", not_found_action))    
+      create_unsuccessful_find_callback("ny", not_found_action))    
   }
   
   function unsuccessful_destroy() {
@@ -1495,14 +1334,12 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
         event_listeners.success();
       });
     });
-    ny.save({
-     success: function(result) {
+    ny.save(function(err, result) {
+      if (err) assert.ok(false, "Error trying to save ny: " + err);
+      else {
        tcm.assert(save_cb_names, cb_token);
        logger.info("ny saved successfully.");
        successful_find();
-     },
-     error: function(mess) {
-       assert.ok(false, "Error trying to save ny: " + mess)
      }
     });    
   }
@@ -1512,8 +1349,10 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
     var tcm = tokenCallbackManager();
     var find_cb_names = ["after_find_row", "after_initialize_row"]
     tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
-    StateLastLoginUsers.find("NY", column_predicate, {
-      success: function(result) {
+    StateLastLoginUsers.find("NY", column_predicate, function(err, result) {
+      if (err) assert.ok(false, "Error looking for ny:" + err );
+      else if (!result) assert.ok(false, "Could not find ny.");
+      else {
         ny = test.ny = result;
         assert.equal(2, ny.columns.length);
         tcm.assert(find_cb_names, cb_token);
@@ -1523,12 +1362,6 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
         assert_ny_1271184169(ny_1271184169, 0, "Elmhurst", 1, "Brooklyn");
         logger.info("ny found successfully and save result validated.");
         save_after_find();
-      },
-      not_found: function() {
-        assert.ok(false, "Could not find ny.")
-      },
-      error: function(mess) {
-        assert.ok(false, "Error looking for ny:" + mess )
       }
     });
     
@@ -1587,11 +1420,13 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
     ny.columns[0].columns[1].city = bob_new_city
     ny.columns[1].columns[0].city = chuck_new_city
     ny.columns[1].columns[1].city = dave_new_city
-    ny.save({
-      success: function(result) {
+    ny.save(function(err, result) {
+      if (err) assert.ok(false, "Error saving ny: " + err);        
+      else {
         tcm.assert(save_cb_names, cb_token);
-        StateLastLoginUsers.find("NY", column_predicate, {
-          success: function(result) {
+        StateLastLoginUsers.find("NY", column_predicate, function(err, result) {
+          if (err) assert.ok(false, "Error finding ny.");
+          else {
             ny = test.ny = result;
             ny_1271184168 = test.ny_1271184168 = result.columns[0];
             ny_1271184169 = result.columns[1];
@@ -1599,14 +1434,8 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
             assert_ny_1271184169(ny_1271184169, 0, chuck_new_city, 1, dave_new_city);
             logger.info("ny saved successfully and result validated after find.");
             successful_destroy();
-          },
-          error: function(mess) {
-            assert.ok(false, "Error finding ny.")
           }
         });
-      },
-      error: function(mess) {
-        assert.ok(false, "Error saving ny: " + mess);        
       }
     });
   }
@@ -1619,15 +1448,13 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
         assert.strictEqual(ny, this);
         event_listeners.success();
       });
-      ny.destroy({
-        success: function() {
+      ny.destroy(function(err) {
+        if (err) assert.ok(false, "Error destroying ny: " + err);
+        else {
           logger.info("Successfully destroyed ny.")
           StateLastLoginUsers.callbacks = {}
           assert.equal(cb_token, ny.after_destroy_token);
           unsuccessful_find( finished );
-        },
-        error: function(mess) {          
-          assert.ok(false, "Error destroying ny: " + mess)
         }
       });
     } catch (e) {
@@ -1677,22 +1504,18 @@ function test_column_value_types_static(assert, finished, test) {
 }
 
 function _test_column_value_types(cf, o, assert_func, assert, finished, test) {
-  o.save({
-   success: function(id) {
-     cf.find(id, {column_names: ["date_col", "number_col", "json_col"]}, {
-       success: function(result) {
+  o.save(function(err, id) {
+    if (err) assert.ok(false, "Error trying to save object: " + err);
+    else {
+     cf.find(id, {column_names: ["date_col", "number_col", "json_col"]}, function(err, result) {
+       if (err) assert.ok(false, "Error trying to find object: " + err)
+       else {
          o = test.o = result;
          assert_func(result);
          logger.info("Object successfully returned from find with correct column value types.")
          finished();
-       },
-       error: function(mess) {
-         assert.ok(false, "Error trying to find object: " + mess)
        } 
      });
-   },
-   error: function(mess) {
-     assert.ok(false, "Error trying to save object: " + mess)
    }
   });
 }
@@ -1705,17 +1528,15 @@ function test_auto_key_generation(assert, finished, test) {
   alice = test.alice = Users1.new_object({
    city: "New York", state: "NY", last_login: 1271184168, sex: "F"
   });
-  alice.save({
-   success: function(result) {
+  alice.save(function(err, result) {
+    if (err) assert.ok(false, "Error trying to save alice: " + err);
+    else {    
      assert.ok(result.match(uuid_regex),
                "Save for alice failed to return a UUID.");
      assert.equal(result, alice.key,
                   "Save for alice failed to set key property.");
      logger.info("Save for alice successfully returned a UUID.")
      do_bob_now();
-   },
-   error: function(mess) {
-     assert.ok(false, "Error trying to save alice: " + mess)
    }
   });
   
@@ -1723,49 +1544,45 @@ function test_auto_key_generation(assert, finished, test) {
     bob = test.bob = Users1.new_object(null, {
      city: "Jackson Heights", state: "NY", last_login: 1271184169, sex: "M"
     });
-    bob.save({
-     success: function(result) {
+    bob.save(function(err, result) {
+      if (err) assert.ok(false, "Error trying to save bob: " + err);
+      else {      
        assert.ok(result.match(uuid_regex),
                  "Save for bob failed to return a UUID.");
        assert.equal(result, bob.key,
                     "Save for bob failed to set key property.");
        logger.info("Save for bob successfully returned a UUID.");
        finished();
-     },
-     error: function(mess) {
-       assert.ok(false, "Error trying to save bob: " + mess)
      }
     });    
   }
 }
 
 
-function unsuccessful_find_listeners(object_name, not_found_action) {
-  return {
-    success: function() {
-      assert.ok(false, "Found " + object_name + " unexpectedly.")
-    },
-    not_found: function() {
-      logger.info("not_found event for " + object_name + " generated as expected.")
+function create_unsuccessful_find_callback(object_name, not_found_action) {
+  return function(err, result) {
+    if (err) {
+      assert.ok(false, "Error when attempting to find " + object_name + ": " + err);
+    }
+    else if (!result) {
+      logger.info(object_name + " returned null as expected.")
       not_found_action();
-    },
-    error: function(mess) {
-      assert.ok(false, "Error when attempting to find " + object_name + ": " + mess)
+    } else {
+      assert.ok(false, "Found " + object_name + " unexpectedly.")
     }    
   };
 }
 
 function _aborted_save(column_family, level, object, object_name, next) {
   column_family.add_callback("before_save_" + level, function(event_listeners) { event_listeners.error(); })
-  object.save({
-   success: function(result) {
-     assert.ok(false, "Save for " + object_name + " unexpectedly succeeded.");
-   },
-   error: function() {
-     logger.info("Save for " + object_name + " generated error as expected.");
-     column_family.callbacks = {}
-     next();
-   }
+  object.save(function(err, result) {
+    if (err) {
+      logger.info("Save for " + object_name + " generated error as expected.");
+      column_family.callbacks = {}
+      next();      
+    } else {
+      assert.ok(false, "Save for " + object_name + " unexpectedly succeeded.");      
+    }
   });    
 }
 

@@ -51,12 +51,12 @@ suite.addTests({
 suite.runTests();
 
 function _test_create_mem_object(assert, name, fixed_names, column_value_type) {
-  var cf = { name: "TestColumnFamily"}
+  var cf = {}
   if (name) cf.column_type = "Super"
   cf[(name ? 'sub' : '') + 'column_names'] = fixed_names ? ["col_1", "col_2"] : undefined,
   cf[(name ? 'sub' : '') + 'column_value_type'] = column_value_type
   
-  ActiveColumns.initialize_keyspaces([ {name: "TestKeyspace", column_families: [cf]} ]);
+  ActiveColumns.initialize_keyspaces({ "TestKeyspace": { column_families: {"TestColumnFamily":cf} } });
 
   var val_1 = '{"col_a":"1/a", "col_b":"1/b"}',
       val_2 = '{"col_a":"2/a", "col_b":"2/b"}'
