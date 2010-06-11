@@ -74,17 +74,20 @@ function find_objects() {
       get_request;
   if (super_column_name) column_parent.super_column = super_column_name;
   if (key) {
-    get_request = cassandra.create_request("get_slice",
-      {keyspace: keyspace, key:key, column_parent: column_parent, 
-       predicate: predicate, consistency_level: ConsistencyLevel.ONE})
+    get_request = function(callback) {
+      cassandra.get_slice(keyspace, key, column_parent, predicate, 
+        ConsistencyLevel.ONE, callback);
+     };
   } else if (range) {
-    get_request = cassandra.create_request("get_range_slices",
-      {keyspace:keyspace, column_parent:column_parent, predicate:predicate, 
-       range: range, consistency_level: ConsistencyLevel.ONE})
+    get_request = function(callback) {
+      cassandra.get_range_slices(keyspace, column_parent, predicate, range, 
+        ConsistencyLevel.ONE, callback);
+    };
   } else { // must be keys
-    get_request = cassandra.create_request("multiget_slice",
-      {keyspace:keyspace, column_parent:column_parent, predicate:predicate, 
-       keys: keys, consistency_level: ConsistencyLevel.ONE})
+    get_request = function(callback) {
+      cassandra.multiget_slice(keyspace, keys, column_parent, predicate,
+        ConsistencyLevel.ONE, callback);
+    };
   }
   
   var cf = get_column_family(keyspace, column_family);
@@ -100,7 +103,14 @@ function find_objects() {
     init_callbacks = cf.callbacks.after_initialize_row || [];
   }
   
-  get_request.addListener("success", function(result) {
+  get_request(function(err, result) {
+    if (err) {
+      var error_mess = "Error finding object(s) in " + keyspace + "." + 
+                       column_family + ": " + err;
+      logger.error(error_mess);
+      if (event_listeners.error) event_listeners.error(error_mess);
+      return;
+    }
     var object_result, timestamp;
     if (key) { // list of columns or super columns
       if (result.length > 0) {
@@ -210,15 +220,7 @@ function find_objects() {
         if (event_listeners.not_found) event_listeners.not_found();
       }      
     }
-  })
-  get_request.addListener("error", function(mess) {
-    var error_mess = "Error finding object(s) in " + keyspace + "." + 
-                     column_family + ": " + mess;
-    logger.error(error_mess);
-    if (event_listeners.error) event_listeners.error(error_mess);
-  })
-  
-  get_request.send();
+  });
 }
 
 function remove_object(keyspace, column_family, key, super_column_name, column_name, event_listeners) {
@@ -227,19 +229,20 @@ function remove_object(keyspace, column_family, key, super_column_name, column_n
   var column_path = {column_family: column_family}
   if (super_column_name) column_path.super_column = super_column_name;
   if (column_name) column_path.column = column_name;
-  var request = cassandra.create_request("remove", {
-    keyspace: keyspace, column_path: column_path, timestamp: "auto"
-  })
-  if (event_listeners.success) {
-    request.addListener("success", event_listeners.success);
-  }
-  request.addListener("error", function(mess) {
-    var error_mess = "Error trying to remove " + 
-      path_s(keyspace, column_family, key, super_column_name, column_name) + 
-      ":" + mess;
-    if (event_listeners.error) event_listeners.error(error_mess);
+  cassandra.remove(keyspace, column_path, "auto", 
+    ConsistencyLevel.ONE, function(err, result) {
+
+    if (err) {
+      var error_mess = "Error trying to remove " + 
+        path_s(keyspace, column_family, key, super_column_name, column_name) + 
+        ":" + err;
+      if (event_listeners.error) event_listeners.error(error_mess);
+      return;      
+    } else if (event_listeners.success) {
+      event_listeners.success(result);
+    }
+    
   });
-  request.send();
 }
 
 function save_row_object(keyspace, column_family, o, event_listeners, delete_missing_columns) {
@@ -599,18 +602,17 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
   } else if (!auto_generate_ids) {
     throw Error("Cannot save/destroy an object without a key.");
   } else {
-    var get_uuids = cassandra.create_request("get_uuids")
-    get_uuids.addListener("success", function(result) {
+    cassandra.get_uuids(function(err, result) {
+      if (err) {
+        var error_mess = "Could not get UUID for key when attempting to save object under " + 
+          path_s(keyspace, column_family, key) + ':'  + err;
+        logger.error(error_mess);
+        if (event_listeners.error) event_listeners.error(error_mess);
+        return;
+      }
       o.key = key = result[0];
       now_have_key();
     })
-    get_uuids.addListener("error", function(mess) {
-      var error_mess = "Could not get UUID for key when attempting to save object under " + 
-        path_s(keyspace, column_family, key) + ':'  + mess;
-      logger.error(error_mess);
-      if (event_listeners.error) event_listeners.error(error_mess)      
-    });
-    get_uuids.send();
   } 
   
   function now_have_key() {
@@ -619,18 +621,17 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
     } else if (!auto_generate_ids) {
       throw Error("Cannot save/destroy an object without a _name.");
     } else {
-      var get_uuids = cassandra.create_request("get_uuids")
-      get_uuids.addListener("success", function(result) {
+      cassandra.get_uuids(function(err, result) {
+        if (err) {
+          var error_mess = "Could not get UUID for id when attempting to save/destroy object under " +
+                            path_s(keyspace, column_family, key) + ': ' + err;
+          logger.error(error_mess);
+          if (event_listeners.error) event_listeners.error(error_mess);
+          return;          
+        }
         o._name = result[0];
         now_have_id();
       })
-      get_uuids.addListener("error", function(mess) {
-        var error_mess = "Could not get UUID for id when attempting to save/destroy object under " +
-                          path_s(keyspace, column_family, key) + ': ' + mess;
-        logger.error(error_mess);
-        if (event_listeners.error) event_listeners.error(error_mess)      
-      });
-      get_uuids.send();
     }     
   }
     
@@ -657,21 +658,19 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, event_l
     mut_map[key] = {};
     var mutations = mut_map[key][column_family] = mutations_func();
     if (!mutations || mutations.length < 1) throw Error("Nothing to save/destroy!");
-    var mutate_request = cassandra.create_request("batch_mutate",
-      {keyspace: keyspace, mutation_map: mut_map, 
-       consistency_level: ConsistencyLevel.ONE})
-    mutate_request.addListener("success", function(result) {
+    cassandra.batch_mutate(keyspace, mut_map,
+      ConsistencyLevel.ONE, function(err, result) {
+      if (err) {
+        var error_mess = "Error saving/destroying object under '" + 
+                          path_s(keyspace, column_family, key) + ": " + err;
+        logger.error(error_mess);
+        if (event_listeners.error) event_listeners.error(error_mess);
+        return;
+      }
       if (timestamp_func) timestamp_func(result);
       if (update_last_saved) o.update_last_saved();
       if (event_listeners.success) event_listeners.success(o.id);
-    })
-    mutate_request.addListener("error", function(mess) {
-      var error_mess = "Error saving/destroying object under '" + 
-                        path_s(keyspace, column_family, key) + ": " + mess;
-      logger.error(error_mess);
-      if (event_listeners.error) event_listeners.error(error_mess);
-    })
-    mutate_request.send()
+    });
   }
 }
 
@@ -1031,8 +1030,12 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
     callbacks: config.callbacks || {}
   };
 
-  var request = ks.cassandra.create_request("describe_keyspace", {keyspace: ks.name});
-  request.addListener("success", function(result) {
+  var request = ks.cassandra.describe_keyspace(ks.name, function(err, result) {
+    if (err) {
+      logger.error("Failed to get keyspace description from Cassandra for " + 
+                      ks.name + ":" + err);
+      return; 
+    }
     for (var res_column_family_name in result) {
       if (column_family_name != res_column_family_name) continue;
       cf.type = result[column_family_name].Type;
@@ -1040,11 +1043,6 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
     logger.info("Initialized column family " + ks.name + "/" + column_family_name + 
                   " with Cassandra keyspace description");
   });
-  request.addListener("error", function(mess) {
-    logger.error("Failed to get keyspace description from Cassandra for " + 
-                    ks.name + ":" + mess);
-  });
-  request.send();
   
   cf.add_callback = function(name, func) {
     var cb_list = this.callbacks[name];
