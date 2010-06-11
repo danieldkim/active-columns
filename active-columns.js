@@ -913,8 +913,8 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     Object.defineProperty(o, "before_save_callbacks", { 
       get: function() { return cf.callbacks.before_save_row;} 
     });
-    o.save = function(callback) {
-      save_row_object(keyspace, column_family, this, callback);
+    o.save = function(callback, delete_missing_columns) {
+      save_row_object(keyspace, column_family, this, callback, delete_missing_columns);
     }
     o.destroy = function(callback, totally) {
       if (totally) {
