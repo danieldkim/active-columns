@@ -617,12 +617,12 @@ return <code>null</code> as the second parameter to the *callback*:
     });
 
 
-#### {column\_family}.remove( key, callback )
+#### {column\_family}.remove( key [, callback] )
 
 **Completely** removes the row object with given *key*, i.e. removes the entire
 row, all columns, from Cassandra.
 
-#### {column_family}.add_callback( name, func ) 
+#### {column\_family}.add\_callback( name, func ) 
 
 Adds the function *func* to the sequence of *name* callbacks.
 
@@ -636,7 +636,7 @@ Adds the function *func* to the sequence of *name* callbacks.
 Returns the name of the super column that this {object} lives under. Only
 applies to column objects under a super column.
 
-#### {object}.save( callback, delete\_missing\_columns=true )
+#### {object}.save( [callback [, delete\_missing\_columns=true]] )
 
 Saves {object}. Returns the "id" of the object as the result argument to the
 *callback*. (in addition to setting it on the saved object). e.g.:
@@ -663,7 +663,7 @@ deleted. If you want to prevent this, you can pass false as the last argument to
 <code>save()</code>, after the event listeners hash. This is useful when you
 only want to update a small number of columns for a fixed-column-name object.
 
-#### {object}.destroy( callback )
+#### {object}.destroy( [callback] )
 
 Destroys {object}. Note: this only removes the columns represented in this
 {object} from Cassandra. To completely remove *all* columns of a row object from
@@ -862,11 +862,11 @@ with a problem that they solve that couldn't be handled by the
 I/O would you need to do after a <code>find()</code>? Well, anyway, I
 implemented them and they're here._
 
-#### after\_destroy\_{row|super_column|object} (finished)
+#### after\_destroy\_{row|super_column|object} (previous_version, finished)
 
 This method is called after any row object in the column family is saved.
 *finished* is a function to be called when this callback's work is complete. It
-accepts an error object as the first parameter.The destroyed object can be
+accepts an error object as the first parameter. The destroyed object can be
 accessed through the <code>this</code> variable.
 
     // remove corresponding StateUsers2 object after we destroy a user object
@@ -886,7 +886,7 @@ accessed through the <code>this</code> variable.
           });
         }
       })
-      finished;
+      finished();
     });
 
 ## Future Work
