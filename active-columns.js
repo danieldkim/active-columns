@@ -825,11 +825,13 @@ function activate_object(keyspace, column_family, key, super_column_name, column
 
     function copy(thing) {
       var a_copy;
-      if (typeof thing == "object") {
+      if (thing.constructor.name == "Object") {
         a_copy = {}
         for (var k in thing) {
           a_copy[k] = copy(thing[k]);
         }
+      } else if (thing.constructor.name == 'Date') {
+        a_copy = new Date(thing);
       } else {
         a_copy = thing;
       }
