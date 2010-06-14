@@ -591,27 +591,46 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, save_ca
            
   var cassandra = keyspaces[keyspace].cassandra;
 
-  if ( key ) {
-    now_have_key();
-  } else if (!auto_generate_ids) {
-    throw Error("Cannot save/destroy an object without a key.");
+  if (update_last_saved && o.before_save_callbacks &&
+      o.before_save_callbacks.length > 0 ) {
+    var previous_version = o._last_saved;
+    call_callbacks_sequentially(o.before_save_callbacks, o, function() {
+      check_key();
+    }, function(mess) {
+      var error_mess = "Error in before_save callbacks: " + mess;
+      if (save_callback) save_callback(new Error(error_mess));        
+    },
+    true, previous_version);
   } else {
-    cassandra.get_uuids(function(err, result) {
-      if (err) {
-        var error_mess = "Could not get UUID for key when attempting to save object under " + 
-          path_s(keyspace, column_family, key) + ':'  + err;
-        logger.error(error_mess);
-        if (save_callback) save_callback(new Error(error_mess));
-        return;
-      }
-      o.key = key = result[0];
+    check_key();
+  }
+
+  function check_key() {
+    if ( key ) {
       now_have_key();
-    })
-  } 
+    } else if (o.key) {
+      key = o.key;
+      now_have_key();
+    } else if (!auto_generate_ids) {
+      throw Error("Cannot save/destroy an object without a key.");
+    } else {
+      cassandra.get_uuids(function(err, result) {
+        if (err) {
+          var error_mess = "Could not get UUID for key when attempting to save object under " + 
+            path_s(keyspace, column_family, key) + ':'  + err;
+          logger.error(error_mess);
+          if (save_callback) save_callback(new Error(error_mess));
+          return;
+        }
+        o.key = key = result[0];
+        now_have_key();
+      })
+    }    
+  }
   
   function now_have_key() {
     if ( o.id ) {
-      now_have_id();
+      do_save();
     } else if (!auto_generate_ids) {
       throw Error("Cannot save/destroy an object without a _name.");
     } else {
@@ -624,27 +643,11 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, save_ca
           return;          
         }
         o._name = result[0];
-        now_have_id();
+        do_save();
       })
     }     
   }
-    
-  function now_have_id() {
-    if (update_last_saved && o.before_save_callbacks &&
-        o.before_save_callbacks.length > 0 ) {
-      var previous_version = o._last_saved;
-      call_callbacks_sequentially(o.before_save_callbacks, o, function() {
-        do_save();
-      }, function(mess) {
-        var error_mess = "Error in before_save callbacks: " + mess;
-        if (save_callback) save_callback(new Error(error_mess));        
-      },
-      true, previous_version);
-    } else {
-      do_save();
-    }
-  }
-  
+      
   function do_save() {
     var mut_map = {};
     mut_map[key] = {};
