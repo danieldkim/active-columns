@@ -820,6 +820,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   
   function row_key() { return key; }
   function this_name() { return this._name; }
+  function set_this_name(val) { this._name = val; }
   Object.defineProperty(o, "_last_saved", {value: null, writable: true});
   o.update_last_saved = function() {
 
@@ -868,7 +869,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
   var cf = get_column_family(keyspace, column_family);
   if (column_name) {
     o._name = column_name;
-    Object.defineProperty(o, "id", { get: this_name, enumerable: true });
+    Object.defineProperty(o, "id", { get: this_name, set: set_this_name, enumerable: true });
     Object.defineProperty(o, "key", { get: row_key, enumerable: true });
     Object.defineProperty(o, "after_initialize_callbacks", { 
       get: function() { return cf.callbacks.after_initialize_column;} 
@@ -885,7 +886,7 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     }
   } else if (super_column_name) {
     o._name = super_column_name;
-    Object.defineProperty(o, "id", { get: this_name, enumerable: true });
+    Object.defineProperty(o, "id", { get: this_name, set: set_this_name, enumerable: true });
     Object.defineProperty(o, "key", { get: row_key, enumerable: true });
     Object.defineProperty(o, "after_initialize_callbacks", { 
       get: function() { return cf.callbacks.after_initialize_super_column;} 
@@ -908,7 +909,11 @@ function activate_object(keyspace, column_family, key, super_column_name, column
     if (!o.columns && !cf.column_names) o.columns = [];      
     if (!o.timestamps && cf.column_names) 
       Object.defineProperty(o, "timestamps", {value: {}});
-    Object.defineProperty(o, "id", { get: function() { return this.key; }, enumerable: true });
+    Object.defineProperty(o, "id", { 
+      get: function() { return this.key; },
+      set: function(val) { this.key = val; }, 
+      enumerable: true
+    });
     Object.defineProperty(o, "after_initialize_callbacks", { 
       get: function() { return cf.callbacks.after_initialize_row;} 
     });
