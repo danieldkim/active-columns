@@ -128,9 +128,8 @@ function find_objects() {
             cb.call(object_result);
           });
           object_result_ready();          
-        }, function(mess) {
-          var error_mess = "Error in after_find callbacks: " + mess;
-          find_callback(new Error(error_mess));
+        }, function(err) {
+          find_callback(err);
         })
       } else {
         object_result_ready();
@@ -164,9 +163,8 @@ function find_objects() {
           });
           callback_counter--;
           if (callback_counter == 0) object_result_ready();
-        }, function(mess) {
-          var error_mess = "Error in after_find callbacks: " + mess;
-          find_callback(new Error(error_mess));
+        }, function(err) {
+          find_callback(err);
         })
       })
     } else { // hash of lists of columns or super columns
@@ -196,9 +194,8 @@ function find_objects() {
           });
           callback_counter--;
           if (callback_counter == 0) object_result_ready();
-        }, function(mess) {
-          var error_mess = "Error in after_find callbacks: " + mess;
-          find_callback(new Error(error_mess));
+        }, function(err) {
+          find_callback(err);
         })
       }
     }
@@ -596,9 +593,8 @@ function save_object(keyspace, column_family, key, o, auto_generate_ids, save_ca
     var previous_version = o._last_saved;
     call_callbacks_sequentially(o.before_save_callbacks, o, function() {
       check_key();
-    }, function(mess) {
-      var error_mess = "Error in before_save callbacks: " + mess;
-      if (save_callback) save_callback(new Error(error_mess));        
+    }, function(err) {
+      if (save_callback) save_callback(err);        
     },
     true, previous_version);
   } else {
@@ -951,9 +947,8 @@ function insert_after_callbacks(keyspace, column_family, original_callback, call
   var new_callback = function(err, result) {
     call_callbacks_sequentially(callbacks, o, function() {
       original_callback(err, result);
-    }, function(mess) {
-      var error_mess = "Error in " + cb.name + " callback: " + mess
-      callback(new Error(error_mess));        
+    }, function(err) {
+      callback(err);        
     }, 
     true, previous_version);    
   }
@@ -985,8 +980,7 @@ function call_callbacks_sequentially(callbacks, o, finish, error_handler, with_p
   if (with_previous_version) args.push(previous_version);
   args.push(function(err) {
     if (err) {
-      var error_mess = "Error in " + cb.name + " callback: " + err
-      error_handler(error_mess);
+      error_handler(err);
     } else {
       if (i < callbacks.length - 1) 
         call_callbacks_sequentially(callbacks, o, finish, error_handler, with_previous_version, previous_version, i+1);
