@@ -945,6 +945,10 @@ function insert_after_callbacks(keyspace, column_family, original_callback, call
   if (callbacks.length < 1) return original_callback;
   var previous_version = o._last_saved;
   var new_callback = function(err, result) {
+    if (err) {
+      original_callback(err, result);
+      return;
+    }
     call_callbacks_sequentially(callbacks, o, function() {
       original_callback(err, result);
     }, function(err) {
