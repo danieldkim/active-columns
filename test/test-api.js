@@ -25,21 +25,31 @@ users1Suite.teardown(function(finished) {
     this.Users1.callbacks = {};
     var destroy_alice = alice && alice.destroy;
     var destroy_bob = bob && bob.destroy;
-    if (destroy_alice) {
-      alice.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying alice." + err);
-        else logger.info("Alice destroyed in teardown.");
-        finished();
-      });
-    } 
-    if (destroy_bob) {
-      bob.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying bob." + err);
-        else logger.info("Bob destroyed in teardown.");
-        finished();
-      });
-    }
-    if (! (destroy_alice || destroy_bob)) finished();
+    async.parallel([
+      function(callback) {
+        if (destroy_alice) {
+          alice.destroy(function(err, result) {
+            if (err) assert.ok(false, "error destroying alice." + err);
+            else logger.info("Alice destroyed in teardown.");
+            callback();
+          });
+        } else {
+          callback();
+        }     
+      },
+      function(callback) {
+        if (destroy_bob) {
+          bob.destroy(function(err, result) {
+            if (err) assert.ok(false, "error destroying bob." + err);
+            else logger.info("Bob destroyed in teardown.");
+            callback();
+          });
+        } else {
+          callback();
+        }
+      }
+    ],
+    finished);
   } catch (e) {
     logger.info("Caught exception trying to destroy() in teardown." + e);
     finished();
@@ -47,6 +57,37 @@ users1Suite.teardown(function(finished) {
 });
 users1Suite.addTests({
   "Test Users1 column family": test_Users1,
+  "Test error in before_save aborts save (Users1)": function(assert, finished, test) {
+    var Users1 = this.Users1;    
+    Users1.add_callback("before_save_row", function(previous_version, finished) {
+      finished(new Error("Intentional error in before_save_row"));
+    });
+    var after_save_called = false;
+    Users1.add_callback("after_save_row", function(previous_version, finished) {
+      after_save_called = true;
+      finished();
+    });
+    var alice = this.alice = Users1.new_object({key: "alice", city: "New York"});
+    async.series([
+      function(next) {
+        alice.save(function(err, result) {
+          assert.ok(err || 0, "Save of alice should have returned an error.");
+          next();
+        });        
+      },
+      function(next) {
+        assert.equal(false, after_save_called, 
+                     "after_save should not have been called.");
+        Users1.find("alice", function(err, result) {
+          assert.equal(null, result, "alice found unexpectedly.");
+          next();
+        });
+      }
+    ], function(err) {
+      assert.ok(typeof err == 'undefined', err, "An error occurred: " + err);
+      finished();
+    });
+  }
 });
 
 
@@ -59,21 +100,31 @@ users2Suite.teardown(function(finished) {
     var alice = this.alice, bob = this.bob;
     var destroy_alice = alice && alice.destroy;
     var destroy_bob = bob && bob.destroy;
-    if (destroy_alice) {
-      alice.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying alice." + err);
-        else logger.info("Alice destroyed in teardown.");
-        finished();
-      });
-    } 
-    if (destroy_bob) {
-      bob.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying bob." + err);
-        else logger.info("Bob destroyed in teardown.");
-        finished();
-      });
-    }
-    if (! (destroy_alice || destroy_bob)) finished();
+    async.parallel([
+      function(callback) {
+        if (destroy_alice) {
+          alice.destroy(function(err, result) {
+            if (err) assert.ok(false, "error destroying alice." + err);
+            else logger.info("Alice destroyed in teardown.");
+            callback();
+          });
+        } else {
+          callback();
+        }
+      },
+      function(callback) {
+        if (destroy_bob) {
+          bob.destroy(function(err, result) {
+            if (err) assert.ok(false, "error destroying bob." + err);
+            else logger.info("Bob destroyed in teardown.");
+            callback();
+          });
+        } else {
+          callback();
+        }
+      }
+    ],
+    finished);
   } catch (e) {
     logger.info("Caught exception trying to destroy() in teardown." + e);
     finished();
@@ -236,21 +287,31 @@ autoIdGenerationSuite.teardown(function (finished) {
     var alice = this.alice, bob = this.bob;
     var destroy_alice = alice && alice.destroy;
     var destroy_bob = bob && bob.destroy;
-    if (destroy_alice) {
-      alice.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying alice." + err);
-        else logger.info("Alice destroyed in teardown.");
-        finished();
-      });
-    } 
-    if (destroy_bob) {
-      bob.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying bob." + err);
-        else logger.info("Bob destroyed in teardown.");
-        finished();
-      });
-    }
-    if (! (destroy_alice || destroy_bob)) finished();
+    async.parallel([
+      function(callback) {
+        if (destroy_alice) {
+          alice.destroy(function(err, result) {
+            if (err) assert.ok(false, "error destroying alice." + err);
+            else logger.info("Alice destroyed in teardown.");
+            callback();
+          });
+        } else {
+          callback();
+        }
+      },
+      function(callback) {
+        if (destroy_bob) {
+          bob.destroy(function(err, result) {
+            if (err) assert.ok(false, "error destroying bob." + err);
+            else logger.info("Bob destroyed in teardown.");
+            callback();
+          });
+        } else {
+          callback();
+        }
+      }
+    ],
+    finished);
   } catch (e) {
     logger.info("Caught exception trying to destroy() in teardown." + e);
     finished();
@@ -332,15 +393,16 @@ function test_Users1(assert, finished, test) {
     find_alice_and_bob_with_range,
     find_alice_and_bob_with_keys,
     successful_destroy
-  ],
-  finished);
+  ], function(err) {
+    assert.ok(typeof err == 'undefined', err, "An error occurred: " + err);
+    finished();
+  });
 
   function unsuccessful_find(next) {
     Users1.find("alice", create_unsuccessful_find_callback("alice", next));    
   }
 
   function unsuccessful_destroy(next) {
-    var cb_token = Math.random();
     var tcm = tokenCallbackManager()
     var cb_token = Math.random();
     var init_cb_names = ["after_initialize_row"];
