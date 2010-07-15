@@ -171,8 +171,7 @@ function find_objects() {
       object_result = {}
       var callback_counter = 0;
       var non_empty_results = {};
-      for ( var k in result ) {
-        var columns = result[k];
+      _.forEach(result, function(columns, k) {
         if (column_name) {
           columns = columns[0].value
           timestamp = columns[0].timestamp
@@ -181,10 +180,9 @@ function find_objects() {
           callback_counter++;
           non_empty_results[k] = {columns:columns, timestamp:timestamp};
         }
-      }
+      });
       if (Object.keys(non_empty_results).length < 1) object_result_ready();
-      for ( var k in non_empty_results ) {
-        var res = non_empty_results[k];
+      _.forEach(non_empty_results, function(res, k) {
         object_result[k] = create_mem_object(keyspace, column_family, k, 
                              super_column_name, column_name, res.columns, res.timestamp)
         object_result[k].update_last_saved();
@@ -197,7 +195,7 @@ function find_objects() {
         }, function(err) {
           find_callback(err);
         })
-      }
+      });
     }
     
     function object_result_ready() {
@@ -517,9 +515,9 @@ function destroy_super_column_object(keyspace, column_family, key, o, callback) 
     },
     function(new_timestamp) {
       if (o.timestamps) {
-        for (var k in o.timestamps) {
+        _.forEach(o.timestamps, function(v, k) {
           o.timestamps[k] = new_timestamp;
-        }
+        });
       } else {
         o.columns.forEach(function(col) {col.timestamp = new_timestamp});
       }
@@ -995,9 +993,9 @@ function call_callbacks_sequentially(callbacks, o, finish, error_handler, with_p
 }
 
 function initialize_keyspaces(config) {
-  for (var keyspace_name in config) {
-    initialize_keyspace(keyspace_name, config[keyspace_name]);
-  }
+  _.forEach(config, function(keyspace_config, keyspace_name){
+    initialize_keyspace(keyspace_name, keyspace_config);
+  });
   return keyspaces;
 };
 
@@ -1007,9 +1005,10 @@ function initialize_keyspace(keyspace_name, config) {
   ks.cassandra = require('cassandra-node-client').create(
                    config.cassandra_port, config.cassandra_host, logger)
   ks.column_families = {}
-  for (var cf_name in config.column_families) {
-    initialize_column_family(ks.name, cf_name, 
-                             config.column_families[cf_name])
+  if (config.column_families) {
+    _.forEach(config.column_families, function(cf_config, cf_name) {
+      initialize_column_family(ks.name, cf_name, cf_config);
+    });
   }
   return ks;
 }
@@ -1034,10 +1033,10 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
                       ks.name + ":" + err);
       return; 
     }
-    for (var res_column_family_name in result) {
-      if (column_family_name != res_column_family_name) continue;
-      cf.type = result[column_family_name].Type;
-    }
+    _.forEach(result, function(res_column_family, res_column_family_name) {
+      if (column_family_name == res_column_family_name)
+        cf.type = res_column_family.Type;
+    });
     logger.info("Initialized column family " + ks.name + "/" + column_family_name + 
                   " with Cassandra keyspace description");
   });
@@ -1087,22 +1086,22 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
               (this.column_names || this.column_value_type == 'json')) ||
             (super_column_name && 
               (this.subcolumn_names || this.subcolumn_value_type == 'json'))) {
-          for (var name in init_cols) {
-            var val = init_cols[name];
+          var that = this;
+          _.forEach(init_cols, function(val, name) {
             if (val.constructor.name == 'Object') {
               if ( !super_column_name && 
-                  (this.column_names || this.column_value_type == 'json') ) {
-                mem_obj[name] = this.new_object(key, name, init_cols[name]);
+                  (that.column_names || that.column_value_type == 'json') ) {
+                mem_obj[name] = that.new_object(key, name, val);
               } else if ( super_column_name && 
-                          (this.subcolumn_names || this.subcolumn_value_type == 'json') ) {
-                mem_obj[name] = this.new_object(key, super_column_name, name, init_cols[name]);
+                          (that.subcolumn_names || that.subcolumn_value_type == 'json') ) {
+                mem_obj[name] = that.new_object(key, super_column_name, name, val);
               } else {
                 throw Error("Cannot use a hash to initialize this object.");
               }
             } else {
-              mem_obj[name] = init_cols[name];
+              mem_obj[name] = val;
             }
-          }
+          });
         }
       } else if (init_cols.constructor.name == 'Array') {
         // can initialize with an array if this is:
