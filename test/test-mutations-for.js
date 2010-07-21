@@ -244,8 +244,8 @@ suite.addTests({
         var exp_val = eval('(' + exp_col.value + ')')
         var col_val = eval('(' + col.value + ')')
         for (var k in exp_val) {
-          assert.equal(exp_val[k], col_val[k], 
-                       "Expected " + k + " to be " + exp_val[k]);
+        _.forEach(exp_val, function(v, k))
+          assert.equal(v, col_val[k], "Expected " + k + " to be " + v);
         }
         return true;
       }), 
