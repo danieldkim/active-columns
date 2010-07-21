@@ -698,7 +698,7 @@ function create_mem_object(keyspace, column_family, key, super_column_name, colu
       if ( logger.isDebugEnabled() )
         logger.debug("Creating json value " + sys.inspect(columns, false, null) + " under " + path);
       o = eval('(' + columns + ')')
-      o.timestamp = timestamp;
+      if (timestamp) o.timestamp = timestamp;
     } else if (column_value_type_for_column == 'json') {
       if ( logger.isDebugEnabled() )
         logger.debug("Creating json value " + sys.inspect(columns, false, null) + " under " + path);
