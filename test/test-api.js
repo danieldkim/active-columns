@@ -873,7 +873,7 @@ function test_Users2(test) {
           logger.info("Successfully destroyed alice.")
           test.equal(cb_token, alice.after_destroy_token);
           Users2.callbacks = {};
-          unsuccessful_find(function() { test.finish() });
+          unsuccessful_find(test.finish);
         }
       });
     } catch (e) {
@@ -1032,7 +1032,7 @@ function _test_StateUsersX_user_level(test, column_family) {
           StateUsersX.callbacks = {}
           test.equal(cb_token, ny_alice.after_destroy_token);
           logger.info("Successfully destroyed ny_alice.")
-          unsuccessful_find(function() { test.finish(); });
+          unsuccessful_find(test.finish);
         }
       });
     } catch (e) {
@@ -1196,7 +1196,7 @@ function _test_StateUsersX_state_level(test, column_family) {
           logger.info("Successfully destroyed ny.")
           StateUsersX.callbacks = {}
           test.equal(cb_token, ny.after_destroy_token);
-          unsuccessful_find(function(){ test.finish(); });
+          unsuccessful_find(test.finish);
         }
       });
     } catch (e) {
@@ -1341,7 +1341,7 @@ function test_StateLastLoginUsers_user_level(test) {
           logger.info("Successfully destroyed ny_1271184168_alice.")
           StateLastLoginUsers.callbacks = {}
           test.equal(cb_token, ny_1271184168_alice.after_destroy_token);
-          unsuccessful_find(function() { test.finish(); });
+          unsuccessful_find(test.finish);
         }
       });
     } catch (e) {
@@ -1501,7 +1501,7 @@ function test_StateLastLoginUsers_last_login_level(test) {
           logger.info("Successfully destroyed ny_1271184168.")
           StateLastLoginUsers.callbacks = {}
           test.equal(cb_token, ny_1271184168.after_destroy_token);
-          unsuccessful_find(function(){ test.finish(); });
+          unsuccessful_find(test.finish);
         }
       });
     } catch (e) {
@@ -1694,7 +1694,7 @@ function test_StateLastLoginUsers_state_level(test) {
           logger.info("Successfully destroyed ny.")
           StateLastLoginUsers.callbacks = {}
           test.equal(cb_token, ny.after_destroy_token);
-          unsuccessful_find( function() { test.finish() } );
+          unsuccessful_find(test.finish);
         }
       });
     } catch (e) {
