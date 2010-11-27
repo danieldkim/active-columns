@@ -1,3 +1,6 @@
+require.paths.unshift('./lib');
+require.paths.unshift('../lib');
+
 var sys = require('sys');
 var _ = require('underscore')._;
 var assert = require('assert');
@@ -12,43 +15,65 @@ logger.setLevel('INFO');
 var ActiveColumns = require('active-columns');
 ActiveColumns.set_logger(logger);
 
-var TestSuite = require('async_testing').TestSuite;
-var suite = new TestSuite("create_mem_object() tests");
-suite.addTests({
-  "No supercolumn, no column names": function(assert) {
-    _test_create_mem_object(assert, null, false)  
-  },
-  
-  "No supercolumn, no column names, json value type": function(assert) {
-    _test_create_mem_object(assert, null, false, 'json')  
-  },
-  
-  "No supercolumn, fixed column names": function(assert) {
-    _test_create_mem_object(assert, null, true)  
-  },
-  
-  "No supercolumn, fixed column names, json value type": function(assert) {
-    _test_create_mem_object(assert, null, true, 'json')
-  },
-  
-  "Supercolumn, no column names": function(assert) {
-    _test_create_mem_object(assert, "test_super_column", false)  
-  },
-  
-  "Supercolumn, no column names, json value type": function(assert) {
-    _test_create_mem_object(assert, "test_super_column", false, 'json')  
-  },
-  
-  "Supercolumn, fixed column names": function(assert) {
-    _test_create_mem_object(assert, "test_super_column", true)  
-  },
+var test_util = require('test-util');
+var async_testing = require('async_testing')
+  , wrap = async_testing.wrap
+  ;
 
-  "Supercolumn, fixed column names, json value type": function(assert) {
-    _test_create_mem_object(assert, "test_super_column", true, 'json')
-  }
+// if this module is the script being run, then run the tests:  
+if (module == require.main) {
+  test_util.run(__filename, module.exports);
+}
+
+var suite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    done();
+  },
+  suite: {
+    "No supercolumn, no column names": function(assert) {
+      _test_create_mem_object(assert, null, false)  
+    },
+
+    "No supercolumn, no column names, json value type": function(assert) {
+      _test_create_mem_object(assert, null, false, 'json')  
+    },
+
+    "No supercolumn, fixed column names": function(assert) {
+      _test_create_mem_object(assert, null, true)  
+    },
+
+    "No supercolumn, fixed column names, json value type": function(assert) {
+      _test_create_mem_object(assert, null, true, 'json')
+    },
+
+    "Supercolumn, no column names": function(assert) {
+      _test_create_mem_object(assert, "test_super_column", false)  
+    },
+
+    "Supercolumn, no column names, json value type": function(assert) {
+      _test_create_mem_object(assert, "test_super_column", false, 'json')  
+    },
+
+    "Supercolumn, fixed column names": function(assert) {
+      _test_create_mem_object(assert, "test_super_column", true)  
+    },
+
+    "Supercolumn, fixed column names, json value type": function(assert) {
+      _test_create_mem_object(assert, "test_super_column", true, 'json')
+    }
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
 });
 
-suite.runTests();
+module.exports = { "create_mem_object() tests": suite };
 
 function _test_create_mem_object(assert, name, fixed_names, column_value_type) {
   var cf = {}

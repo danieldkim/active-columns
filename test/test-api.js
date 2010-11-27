@@ -1,4 +1,6 @@
-var assert = require('assert');
+require.paths.unshift('./lib');
+require.paths.unshift('../lib');
+
 var log4js = require('log4js-node');
 log4js.addAppender(log4js.consoleAppender());
 var path_nodes = __filename.split('/');
@@ -13,317 +15,445 @@ var ActiveColumns = require('active-columns');
 ActiveColumns.set_logger(logger);
 require('./init-test-keyspace').do_it();
 
-var TestSuite = require('async_testing').TestSuite;
+var test_util = require('test-util');
+var async_testing = require('async_testing')
+  , wrap = async_testing.wrap
+  ;
 
-var users1Suite = new TestSuite();
-users1Suite.setup(function() {
-  this.Users1 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users1");
-});
-users1Suite.teardown(function(finished) {
-  try {
-    var alice = this.alice, bob = this.bob;
-    this.Users1.callbacks = {};
-    var destroy_alice = alice && alice.destroy;
-    var destroy_bob = bob && bob.destroy;
-    async.parallel([
-      function(callback) {
-        if (destroy_alice) {
-          alice.destroy(function(err, result) {
-            if (err) assert.ok(false, "error destroying alice." + err);
-            else logger.info("Alice destroyed in teardown.");
+// if this module is the script being run, then run the tests:  
+if (module == require.main) {
+  test_util.run(__filename, module.exports);
+}
+
+var users1Suite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    test.Users1 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users1");
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      var alice = test.alice, bob = test.bob;
+      test.Users1.callbacks = {};
+      var destroy_alice = alice && alice.destroy;
+      var destroy_bob = bob && bob.destroy;
+      async.parallel([
+        function(callback) {
+          if (destroy_alice) {
+            alice.destroy(function(err, result) {
+              if (err) test.ok(false, "error destroying alice." + err);
+              else logger.info("Alice destroyed in teardown.");
+              callback();
+            });
+          } else {
             callback();
-          });
-        } else {
-          callback();
-        }     
-      },
-      function(callback) {
-        if (destroy_bob) {
-          bob.destroy(function(err, result) {
-            if (err) assert.ok(false, "error destroying bob." + err);
-            else logger.info("Bob destroyed in teardown.");
+          }     
+        },
+        function(callback) {
+          if (destroy_bob) {
+            bob.destroy(function(err, result) {
+              if (err) test.ok(false, "error destroying bob." + err);
+              else logger.info("Bob destroyed in teardown.");
+              callback();
+            });
+          } else {
             callback();
-          });
-        } else {
-          callback();
+          }
         }
-      }
-    ],
-    finished);
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
+      ],
+      done);
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test Users1 column family": test_Users1,
+    "Test error in before_save aborts save (Users1)": function(test) {
+      var Users1 = test.Users1;    
+      Users1.add_callback("before_save_row", function(previous_version, finished) {
+        finished(new Error("Intentional error in before_save_row"));
+      });
+      var after_save_called = false;
+      Users1.add_callback("after_save_row", function(previous_version, finished) {
+        after_save_called = true;
+        finished();
+      });
+      var alice = test.alice = Users1.new_object({key: "alice", city: "New York"});
+      async.series([
+        function(next) {
+          alice.save(function(err, result) {
+            test.ok(err || 0, "Save of alice should have returned an error.");
+            next();
+          });        
+        },
+        function(next) {
+          test.equal(false, after_save_called, 
+                       "after_save should not have been called.");
+          Users1.find("alice", function(err, result) {
+            test.equal(null, result, "alice found unexpectedly.");
+            next();
+          });
+        }
+      ], function(err) {
+        test.ok(typeof err == 'undefined', err, "An error occurred: " + err);
+        test.finish();
+      });
+    }
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
 });
-users1Suite.addTests({
-  "Test Users1 column family": test_Users1,
-  "Test error in before_save aborts save (Users1)": function(assert, finished, test) {
-    var Users1 = this.Users1;    
-    Users1.add_callback("before_save_row", function(previous_version, finished) {
-      finished(new Error("Intentional error in before_save_row"));
-    });
-    var after_save_called = false;
-    Users1.add_callback("after_save_row", function(previous_version, finished) {
-      after_save_called = true;
-      finished();
-    });
-    var alice = this.alice = Users1.new_object({key: "alice", city: "New York"});
-    async.series([
-      function(next) {
-        alice.save(function(err, result) {
-          assert.ok(err || 0, "Save of alice should have returned an error.");
-          next();
-        });        
-      },
-      function(next) {
-        assert.equal(false, after_save_called, 
-                     "after_save should not have been called.");
-        Users1.find("alice", function(err, result) {
-          assert.equal(null, result, "alice found unexpectedly.");
-          next();
+
+
+var users2Suite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    test.Users2 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users2");
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      var alice = test.alice, bob = test.bob;
+      var destroy_alice = alice && alice.destroy;
+      var destroy_bob = bob && bob.destroy;
+      async.parallel([
+        function(callback) {
+          if (destroy_alice) {
+            alice.destroy(function(err, result) {
+              if (err) test.ok(false, "error destroying alice." + err);
+              else logger.info("Alice destroyed in teardown.");
+              callback();
+            });
+          } else {
+            callback();
+          }
+        },
+        function(callback) {
+          if (destroy_bob) {
+            bob.destroy(function(err, result) {
+              if (err) test.ok(false, "error destroying bob." + err);
+              else logger.info("Bob destroyed in teardown.");
+              callback();
+            });
+          } else {
+            callback();
+          }
+        }
+      ],
+      done);
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test Users2 column family": test_Users2
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
+});
+
+
+var stateUsersUserLevelSuite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      test.StateUsersX.callbacks = {};
+      var ny_alice = test.ny_alice;
+      if (ny_alice && ny_alice.destroy) {
+        ny_alice.destroy(function(err, result) {
+          if (err) test.ok(false, "error destroying ny_alice." + err);
+          else logger.info("ny_alice destroyed in teardown.");
+          done();        
         });
+      } else {
+        done();
+      }  
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test StateUsers1 column family, user level": test_StateUsers1_user_level,
+    "Test StateUsers2 column family, user level": test_StateUsers2_user_level
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
+});
+
+
+var stateUsersStateLevelSuite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      test.StateUsersX.callbacks = {}
+      var ny = test.ny;
+      if (ny && ny.destroy) {
+        ny.destroy(function(err, result) {
+          if (err) test.ok(false, "error destroying ny." + err);
+          else logger.info("ny destroyed in teardown.");
+          done();
+        });
+      } else {
+        done();
       }
-    ], function(err) {
-      assert.ok(typeof err == 'undefined', err, "An error occurred: " + err);
-      finished();
-    });
-  }
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test StateUsers1 column family, state level": test_StateUsers1_state_level,
+    "Test StateUsers2 column family, state level": test_StateUsers2_state_level
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
 });
 
 
-var users2Suite = new TestSuite();
-users2Suite.setup(function() {
-  this.Users2 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users2");
-});
-users2Suite.teardown(function(finished) {
-  try {
-    var alice = this.alice, bob = this.bob;
-    var destroy_alice = alice && alice.destroy;
-    var destroy_bob = bob && bob.destroy;
-    async.parallel([
-      function(callback) {
-        if (destroy_alice) {
-          alice.destroy(function(err, result) {
-            if (err) assert.ok(false, "error destroying alice." + err);
-            else logger.info("Alice destroyed in teardown.");
-            callback();
-          });
-        } else {
-          callback();
-        }
-      },
-      function(callback) {
-        if (destroy_bob) {
-          bob.destroy(function(err, result) {
-            if (err) assert.ok(false, "error destroying bob." + err);
-            else logger.info("Bob destroyed in teardown.");
-            callback();
-          });
-        } else {
-          callback();
-        }
+var stateLastLoginUsersUserLevelSuite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      test.StateLastLoginUsers.callbacks = {}
+      var ny_1271184168_alice = test.ny_1271184168_alice;
+      if (ny_1271184168_alice && ny_1271184168_alice.destroy) {
+        ny_1271184168_alice.destroy(function(err, result) {
+          if(err) test.ok(false, "error destroying ny_1271184168_alice." + err);
+          else logger.info("ny_1271184168_alice destroyed in teardown.");
+          done();
+        });
+      } else {
+        done();
       }
-    ],
-    finished);
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
-});
-users2Suite.addTests({
-  "Test Users2 column family": test_Users2
-});
-
-
-var stateUsersUserLevelSuite = new TestSuite();
-stateUsersUserLevelSuite.teardown(function(finished) {
-  try {
-    this.StateUsersX.callbacks = {};
-    var ny_alice = this.ny_alice;
-    if (ny_alice && ny_alice.destroy) {
-      ny_alice.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying ny_alice." + err);
-        else logger.info("ny_alice destroyed in teardown.");
-        finished();        
-      });
-    } else {
-      finished();
-    }  
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
-});
-stateUsersUserLevelSuite.addTests({
-  "Test StateUsers1 column family, user level": test_StateUsers1_user_level,
-  "Test StateUsers2 column family, user level": test_StateUsers2_user_level
-});
-
-
-var stateUsersStateLevelSuite = new TestSuite();
-stateUsersStateLevelSuite.teardown(function(finished) {
-  try {
-    this.StateUsersX.callbacks = {}
-    var ny = this.ny;
-    if (ny && ny.destroy) {
-      ny.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying ny." + err);
-        else logger.info("ny destroyed in teardown.");
-        finished();
-      });
-    } else {
-      finished();
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
     }
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
-});
-stateUsersStateLevelSuite.addTests({
-  "Test StateUsers1 column family, state level": test_StateUsers1_state_level,
-  "Test StateUsers2 column family, state level": test_StateUsers2_state_level
-});
-
-
-var stateLastLoginUsersUserLevelSuite = new TestSuite();
-stateLastLoginUsersUserLevelSuite.teardown(function(finished) {
-  try {
-    this.StateLastLoginUsers.callbacks = {}
-    var ny_1271184168_alice = this.ny_1271184168_alice;
-    if (ny_1271184168_alice && ny_1271184168_alice.destroy) {
-      ny_1271184168_alice.destroy(function(err, result) {
-        if(err) assert.ok(false, "error destroying ny_1271184168_alice." + err);
-        else logger.info("ny_1271184168_alice destroyed in teardown.");
-        finished();
-      });
-    } else {
-      finished();
-    }
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
-});
-stateLastLoginUsersUserLevelSuite.addTests({
-  "Test StateLastLoginUsers column family, user level": test_StateLastLoginUsers_user_level,
+  },
+  suite: {
+    "Test StateLastLoginUsers column family, user level": test_StateLastLoginUsers_user_level
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
 });
 
 
-var stateLastLoginUsersLastLoginLevelSuite = new TestSuite();
-stateLastLoginUsersLastLoginLevelSuite.teardown(function(finished) {
-  try {
-    var ny_1271184168 = this.ny_1271184168;
-    this.StateLastLoginUsers.callbacks = {}
-    if (ny_1271184168 && ny_1271184168.destroy) {
-      ny_1271184168.destroy(function(err, result) {
-        if(err) assert.ok(false, "error destroying ny_1271184168." + err);
-        else logger.info("ny_1271184168 destroyed in teardown.");
-        finished();
-      });
-    } else {
-      finished();
-    }
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
-});
-stateLastLoginUsersLastLoginLevelSuite.addTests({
-  "Test StateLastLoginUsers column family, last login level level": test_StateLastLoginUsers_last_login_level
-});
-
-
-var stateLastLoginUsersStateLevelSuite = new TestSuite();
-stateLastLoginUsersStateLevelSuite.teardown(function(finished) {
-  try {
-    var ny = this.ny;
-    this.StateLastLoginUsers.callbacks = {}
-    if (ny && ny.destroy) {
-      ny.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying ny." + err);
-        else logger.info("ny destroyed in teardown.");
-        finished();
-      });
-    } else {
-      finished();
-    }
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
-});
-stateLastLoginUsersStateLevelSuite.addTests({
-  "Test StateLastLoginUsers column family, state level": test_StateLastLoginUsers_state_level
-});
-
-
-var columnValueTypeSuite = new TestSuite();
-columnValueTypeSuite.teardown(function(finished) {
-  try {
-    var o = this.o;
-    if (o.destroy) {
-      o.destroy(function(err, result) {
-        if (err) assert.ok(false, "error destroying object:" + err);
-        else logger.info("Object destroyed in teardown.");
-        finished();
-      });
-    } else {
-      finished();
-    }
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
-});
-columnValueTypeSuite.addTests({
-  "Test column value types": test_column_value_types,
-  "Test column value types, static column names": test_column_value_types_static
-});
-
-
-var autoIdGenerationSuite = new TestSuite();
-autoIdGenerationSuite.teardown(function (finished) {
-  try {
-    var alice = this.alice, bob = this.bob;
-    var destroy_alice = alice && alice.destroy;
-    var destroy_bob = bob && bob.destroy;
-    async.parallel([
-      function(callback) {
-        if (destroy_alice) {
-          alice.destroy(function(err, result) {
-            if (err) assert.ok(false, "error destroying alice." + err);
-            else logger.info("Alice destroyed in teardown.");
-            callback();
-          });
-        } else {
-          callback();
-        }
-      },
-      function(callback) {
-        if (destroy_bob) {
-          bob.destroy(function(err, result) {
-            if (err) assert.ok(false, "error destroying bob." + err);
-            else logger.info("Bob destroyed in teardown.");
-            callback();
-          });
-        } else {
-          callback();
-        }
+var stateLastLoginUsersUserLevelSuite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      test.StateLastLoginUsers.callbacks = {}
+      var ny_1271184168_alice = test.ny_1271184168_alice;
+      if (ny_1271184168_alice && ny_1271184168_alice.destroy) {
+        ny_1271184168_alice.destroy(function(err, result) {
+          if(err) test.ok(false, "error destroying ny_1271184168_alice." + err);
+          else logger.info("ny_1271184168_alice destroyed in teardown.");
+          done();
+        });
+      } else {
+        done();
       }
-    ],
-    finished);
-  } catch (e) {
-    logger.info("Caught exception trying to destroy() in teardown." + e);
-    finished();
-  }
-});
-autoIdGenerationSuite.addTests({  
-  "Test auto key generation": test_auto_key_generation
-  // "Test auto super column name generation: test_auto_super_column_name_generation,
-  // "Test auto column name generation": test_auto_column_name_generation
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test StateLastLoginUsers column family, user level": test_StateLastLoginUsers_user_level
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
 });
 
-require('async_testing').runSuites({
+
+var stateLastLoginUsersLastLoginLevelSuite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      var ny_1271184168 = test.ny_1271184168;
+      test.StateLastLoginUsers.callbacks = {}
+      if (ny_1271184168 && ny_1271184168.destroy) {
+        ny_1271184168.destroy(function(err, result) {
+          if(err) test.ok(false, "error destroying ny_1271184168." + err);
+          else logger.info("ny_1271184168 destroyed in teardown.");
+          done();
+        });
+      } else {
+        done();
+      }
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test StateLastLoginUsers column family, last login level level": test_StateLastLoginUsers_last_login_level
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
+});
+
+
+var stateLastLoginUsersStateLevelSuite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      var ny = test.ny;
+      test.StateLastLoginUsers.callbacks = {}
+      if (ny && ny.destroy) {
+        ny.destroy(function(err, result) {
+          if (err) test.ok(false, "error destroying ny." + err);
+          else logger.info("ny destroyed in teardown.");
+          done();
+        });
+      } else {
+        done();
+      }
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test StateLastLoginUsers column family, state level": test_StateLastLoginUsers_state_level
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
+});
+
+
+var columnValueTypeSuite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      var o = test.o;
+      if (o.destroy) {
+        o.destroy(function(err, result) {
+          if (err) test.ok(false, "error destroying object:" + err);
+          else logger.info("Object destroyed in teardown.");
+          done();
+        });
+      } else {
+        done();
+      }
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test column value types": test_column_value_types,
+    "Test column value types, static column names": test_column_value_types_static
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
+});
+
+
+var autoIdGenerationSuite = wrap({
+  suiteSetup: function(done) {
+    done();
+  },
+  setup: function(test, done) {
+    done();
+  },
+  teardown: function(test, done) {
+    try {
+      var alice = test.alice, bob = test.bob;
+      var destroy_alice = alice && alice.destroy;
+      var destroy_bob = bob && bob.destroy;
+      async.parallel([
+        function(callback) {
+          if (destroy_alice) {
+            alice.destroy(function(err, result) {
+              if (err) test.ok(false, "error destroying alice." + err);
+              else logger.info("Alice destroyed in teardown.");
+              callback();
+            });
+          } else {
+            callback();
+          }
+        },
+        function(callback) {
+          if (destroy_bob) {
+            bob.destroy(function(err, result) {
+              if (err) test.ok(false, "error destroying bob." + err);
+              else logger.info("Bob destroyed in teardown.");
+              callback();
+            });
+          } else {
+            callback();
+          }
+        }
+      ],
+      done);
+    } catch (e) {
+      logger.info("Caught exception trying to destroy() in teardown." + e);
+      done();
+    }
+  },
+  suite: {
+    "Test auto key generation": test_auto_key_generation
+    // "Test auto super column name generation: test_auto_super_column_name_generation,
+    // "Test auto column name generation": test_auto_column_name_generation
+  },
+  suiteTeardown: function(done) {
+    done();
+  }  
+});
+
+module.exports = {
   "Users1 tests": users1Suite,
   "Users2 tests": users2Suite,
   "StateUsersX tests, user level": stateUsersUserLevelSuite,
@@ -333,48 +463,48 @@ require('async_testing').runSuites({
   "StateLastLoginUsersX tests, state level": stateLastLoginUsersStateLevelSuite,
   "Column value type tests": columnValueTypeSuite,
   "Auto id generation tests": autoIdGenerationSuite  
-});
+};
 
-function test_Users1(assert, finished, test) {
+function test_Users1(test) {
 
   var Users1 = test.Users1;
   var alice;
   var save_cb_names = ["before_save_row", "after_save_row"];
 
   function assert_alice(version, city) {
-    assert.equal("alice", version.key);
-    assert.equal("alice", version.id);
-    assert.equal(city, version.city);
-    assert.equal("NY", version.state);
-    assert.equal(1271184168, version.last_login);
-    assert.equal("F", version.sex);       
+    test.equal("alice", version.key);
+    test.equal("alice", version.id);
+    test.equal(city, version.city);
+    test.equal("NY", version.state);
+    test.equal(1271184168, version.last_login);
+    test.equal("F", version.sex);       
   }
 
   function assert_bob() {
-    assert.equal("bob", bob.key);
-    assert.equal("bob", bob.id);
-    assert.equal("Jackson Heights", bob.city);
-    assert.equal("NY", bob.state);
-    assert.equal("1271184168", bob.last_login);
-    assert.equal("M", bob.sex);    
+    test.equal("bob", bob.key);
+    test.equal("bob", bob.id);
+    test.equal("Jackson Heights", bob.city);
+    test.equal("NY", bob.state);
+    test.equal("1271184168", bob.last_login);
+    test.equal("M", bob.sex);    
   }
 
   function find_alice_and_bob(keyspec, next) {
     Users1.find(keyspec, function(err, results) {
-      if (err) assert.ok(false, "Error finding bob and alice: " + err);        
+      if (err) test.ok(false, "Error finding bob and alice: " + err);        
       else {
-        assert.equal(2, Object.keys(results).length);
+        test.equal(2, Object.keys(results).length);
         _.forEach(results, function(res, k) {
           if (res.key == "alice") {
             alice = test.alice = res;
-            if (isNaN(parseInt(k))) assert.equal("alice", k);
+            if (isNaN(parseInt(k))) test.equal("alice", k);
             assert_alice(alice, "Los Angeles");
           } else if (res.key == "bob") {
             bob = test.bob = res;
-            if (isNaN(parseInt(k)))  assert.equal("bob", k);
+            if (isNaN(parseInt(k)))  test.equal("bob", k);
             assert_bob();
           } else {
-            assert.ok(false, "Got an unexpected key when finding alice and bob.")
+            test.ok(false, "Got an unexpected key when finding alice and bob.")
           }
         })
         next();
@@ -394,8 +524,8 @@ function test_Users1(assert, finished, test) {
     find_alice_and_bob_with_keys,
     successful_destroy
   ], function(err) {
-    assert.ok(typeof err == 'undefined', err, "An error occurred: " + err);
-    finished();
+    test.ok(typeof err == 'undefined', err, "An error occurred: " + err);
+    test.finish();
   });
 
   function unsuccessful_find(next) {
@@ -403,7 +533,7 @@ function test_Users1(assert, finished, test) {
   }
 
   function unsuccessful_destroy(next) {
-    var tcm = tokenCallbackManager()
+    var tcm = tokenCallbackManager(test);
     var cb_token = Math.random();
     var init_cb_names = ["after_initialize_row"];
     tcm.add(Users1, init_cb_names, cb_token);
@@ -413,7 +543,7 @@ function test_Users1(assert, finished, test) {
     tcm.assert(init_cb_names, cb_token);
     try {
       alice.destroy();
-      assert.ok(false, "Expected destroy for alice to throw an exception.");
+      test.ok(false, "Expected destroy for alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy for alice threw exception as expected: " + e);
       next();
@@ -428,17 +558,17 @@ function test_Users1(assert, finished, test) {
 
   function first_save(next) {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(Users1, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       Users1.add_callback(cb_name, function(previous_version, cb_finished) {
-        assert.equal(null, previous_version);
-        assert.strictEqual(alice, this);
+        test.equal(null, previous_version);
+        test.strictEqual(alice, this);
         cb_finished();
       });
     });
     alice.save(function(err, result) {
-      if (err) assert.ok(false, "Error trying to save alice: " + err);
+      if (err) test.ok(false, "Error trying to save alice: " + err);
       else {
        logger.info("Alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
@@ -450,11 +580,11 @@ function test_Users1(assert, finished, test) {
   function successful_find(next) {
     var cb_token = Math.random();
     var find_cb_names = ["after_find_row", "after_initialize_row"]
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(Users1, find_cb_names, cb_token);
     Users1.find("alice", function(err, result) {
-      if (err) assert.ok(false, "Error looking for alice:" + err );
-      else if (!result) assert.ok(false, "Could not find alice.");
+      if (err) test.ok(false, "Error looking for alice:" + err );
+      else if (!result) test.ok(false, "Could not find alice.");
       else {
         alice = test.alice = result;
         assert_alice(alice, "New York");
@@ -473,25 +603,25 @@ function test_Users1(assert, finished, test) {
     assert_alice(alice._last_saved, "New York");
     Users1.callbacks = {}
     var cb_token = Math.random();;
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(Users1, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       Users1.add_callback(cb_name, function(previous_version, cb_finished) {
         assert_alice(previous_version, "New York");
-        assert.strictEqual(alice, this);
+        test.strictEqual(alice, this);
         cb_finished();
       });
     });
     alice.save(function(err, result) {
-      if (err) assert.ok(false, "Error saving alice: " + err);        
+      if (err) test.ok(false, "Error saving alice: " + err);        
       else {
         tcm.assert(save_cb_names, cb_token);
         Users1.find("alice", function(err, result) {
-          if (err) assert.ok(false, "Error finding alice.");
+          if (err) test.ok(false, "Error finding alice.");
           else {
             logger.info("Alice saved successfully after find.");
             alice = test.alice = result;
-            assert.equal("Los Angeles", alice.city);
+            test.equal("Los Angeles", alice.city);
             Users1.callbacks = {}
             next();
           }
@@ -505,7 +635,7 @@ function test_Users1(assert, finished, test) {
      city: "Jackson Heights", state: "NY", last_login: 1271184168, sex: "M"
     });
     bob.save(function(err, result) {
-      if (err) assert.ok(false, "Error saving bob: " + err);        
+      if (err) test.ok(false, "Error saving bob: " + err);        
       else {
         logger.info("Saved bob successfully.");
         next();
@@ -532,26 +662,26 @@ function test_Users1(assert, finished, test) {
       var cb_token = Math.random();;
       Users1.add_callback("after_destroy_row", function(previous_version, cb_finished) {
         this.after_destroy_token = cb_token;
-        assert.strictEqual(alice, this);
+        test.strictEqual(alice, this);
         cb_finished();
       });
       alice.destroy(function(err) {
-        if (err) assert.ok(false, "Error destroying alice: " + err);
+        if (err) test.ok(false, "Error destroying alice: " + err);
         else {
           Users1.callbacks = {}
-          assert.equal(cb_token, alice.after_destroy_token);
+          test.equal(cb_token, alice.after_destroy_token);
           logger.info("Successfully destroyed alice.");
           unsuccessful_find(next);
         }
       });
     } catch (e) {
-      assert.ok(false, "Destroy for alice threw an exception.");
+      test.ok(false, "Destroy for alice threw an exception.");
     }    
   }
       
 }
 
-function test_Users2(assert, finished, test) {
+function test_Users2(test) {
   
   var Users2 = test.Users2;
     
@@ -580,14 +710,14 @@ function test_Users2(assert, finished, test) {
   
   function unsuccessful_destroy() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var init_cb_names = ["after_initialize_row"];
     tcm.add(Users2, init_cb_names, cb_token);
     alice = test.alice = Users2.new_object("alice", alice_columns);
     tcm.assert(init_cb_names, cb_token);
     try {
       alice.destroy();
-      assert.ok(false, "Expected destroy for alice to throw an exception.");
+      test.ok(false, "Expected destroy for alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy for alice threw exception as expected: " + e);
       aborted_save();
@@ -604,17 +734,17 @@ function test_Users2(assert, finished, test) {
   
   function first_save() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(Users2, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       Users2.add_callback(cb_name, function(previous_version, cb_finished) {
-        assert.equal(null, previous_version);
-        assert.strictEqual(alice, this);
+        test.equal(null, previous_version);
+        test.strictEqual(alice, this);
         cb_finished();
       });
     });
     alice.save(function(err, result) {
-      if (err) assert.ok(false, "Error trying to save alice: " + err);
+      if (err) test.ok(false, "Error trying to save alice: " + err);
       else {
        logger.info("Alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
@@ -625,12 +755,12 @@ function test_Users2(assert, finished, test) {
   
   function successful_find() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var find_cb_names = ["after_find_row", "after_initialize_row"];
     tcm.add(Users2, find_cb_names, cb_token);
     Users2.find("alice", predicate, function(err, result) {
-      if (err) assert.ok(false, "Error looking for alice:" + err );
-      else if (!result) assert.ok(false, "Could not find alice.");
+      if (err) test.ok(false, "Error looking for alice:" + err );
+      else if (!result) test.ok(false, "Could not find alice.");
       else {
         alice = test.alice = result;
         assert_alice(alice, "New York");
@@ -644,7 +774,7 @@ function test_Users2(assert, finished, test) {
 
   function assert_alice(version, city) {
     alice_columns.forEach(function(exp_col) {
-      assert.ok(_.any(version.columns, function(col) {
+      test.ok(_.any(version.columns, function(col) {
         if (col.name == "city") return col.value == city;
         else return exp_col.name == col.name && exp_col.value == col.value;
       }), 
@@ -659,22 +789,22 @@ function test_Users2(assert, finished, test) {
     _.detect(alice.columns, function(col) {return col.name == "city"}).value = "Los Angeles";
     Users2.callbacks = {}
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(Users2, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       Users2.add_callback(cb_name, function(previous_version, cb_finished) {
         assert_alice(previous_version, "New York");
-        assert.strictEqual(alice, this);
+        test.strictEqual(alice, this);
         cb_finished();
       });
     });
     alice.save(function(err, result) {
-      if (err) assert.ok(false, "Error saving alice: " + err);        
+      if (err) test.ok(false, "Error saving alice: " + err);        
       else {
         tcm.assert(save_cb_names, cb_token);
         logger.info("Alice saved successfully after find.");
         Users2.find("alice", predicate, function(err, result) {
-          if (err) assert.ok(false, "Error finding alice.");
+          if (err) test.ok(false, "Error finding alice.");
           else {
             alice = test.alice = result;
             assert_alice(alice, "Los Angeles");
@@ -690,7 +820,7 @@ function test_Users2(assert, finished, test) {
   function add_bob_to_the_mix() {
     bob = test.bob = Users2.new_object("bob", bob_columns);
     bob.save(function(err, result) {
-      if (err) assert.ok(false, "Error saving bob: " + err);        
+      if (err) test.ok(false, "Error saving bob: " + err);        
       else {
         logger.info("Saved bob successfully.");
         find_alice_and_bob();
@@ -700,9 +830,9 @@ function test_Users2(assert, finished, test) {
   
   function find_alice_and_bob() {
     Users2.find({start_key:'', end_key:'', count: 100}, predicate, function(err, results) {
-      if (err) assert.ok(false, "Error finding bob and alice: " + err);        
+      if (err) test.ok(false, "Error finding bob and alice: " + err);        
       else {
-        assert.equal(2, results.length);
+        test.equal(2, results.length);
         results.forEach(function(res) {
           if (res.key == "alice") {
             alice = test.alice = res;
@@ -711,7 +841,7 @@ function test_Users2(assert, finished, test) {
             bob = test.bob = res;
             assert_bob();
           } else {
-            assert.ok(false, "Got an unexpected key from find with key range.")
+            test.ok(false, "Got an unexpected key from find with key range.")
           }
         })
         successful_destroy();
@@ -720,10 +850,10 @@ function test_Users2(assert, finished, test) {
   }
   
   function assert_bob() {
-    assert.equal("bob", bob.key);
-    assert.equal("bob", bob.id);
+    test.equal("bob", bob.key);
+    test.equal("bob", bob.id);
     bob_columns.forEach(function(exp_col) {
-      assert.ok(_.any(bob.columns, function(col) {
+      test.ok(_.any(bob.columns, function(col) {
         return exp_col.name == col.name && exp_col.value == col.value;
       }))          
     });
@@ -734,42 +864,42 @@ function test_Users2(assert, finished, test) {
       var cb_token = Math.random();;
       Users2.add_callback("after_destroy_row", function(previous_version, cb_finished) {
         this.after_destroy_token = cb_token;
-        assert.strictEqual(alice, this);
+        test.strictEqual(alice, this);
         cb_finished();
       });
       alice.destroy(function(err) {
-        if (err) assert.ok(false, "Error destroying alice: " + err);
+        if (err) test.ok(false, "Error destroying alice: " + err);
         else {
           logger.info("Successfully destroyed alice.")
-          assert.equal(cb_token, alice.after_destroy_token);
+          test.equal(cb_token, alice.after_destroy_token);
           Users2.callbacks = {};
-          unsuccessful_find(finished);
+          unsuccessful_find(function() { test.finish() });
         }
       });
     } catch (e) {
-      assert.ok(false, "Destroy for alice threw an exception.");
+      test.ok(false, "Destroy for alice threw an exception.");
     }    
   }
     
 }
 
-function test_StateUsers1_user_level(assert, finished, test) {
-  _test_StateUsersX_user_level(assert, finished, test, "StateUsers1")
+function test_StateUsers1_user_level(test) {
+  _test_StateUsersX_user_level(test, "StateUsers1")
 }
 
-function test_StateUsers1_state_level(assert, finished, test) {
-  _test_StateUsersX_state_level(assert, finished, test, "StateUsers1")
+function test_StateUsers1_state_level(test) {
+  _test_StateUsersX_state_level(test, "StateUsers1")
 }
 
-function test_StateUsers2_user_level(assert, finished, test) {
-  _test_StateUsersX_user_level(assert, finished, test, "StateUsers2")
+function test_StateUsers2_user_level(test) {
+  _test_StateUsersX_user_level(test, "StateUsers2")
 }
 
-function test_StateUsers2_state_level(assert, finished, test) {
-  _test_StateUsersX_state_level(assert, finished, test, "StateUsers2")
+function test_StateUsers2_state_level(test) {
+  _test_StateUsersX_state_level(test, "StateUsers2")
 }
 
-function _test_StateUsersX_user_level(assert, finished, test, column_family) {
+function _test_StateUsersX_user_level(test, column_family) {
 
   var StateUsersX = test.StateUsersX = ActiveColumns.get_column_family("ActiveColumnsTest", column_family);
   var callback_level = column_family == "StateUsers1" ? "super_column" : "column"
@@ -788,14 +918,14 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
   
   function unsuccessful_destroy() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var init_cb_names = ["after_initialize_" + callback_level];
     tcm.add(StateUsersX, init_cb_names, cb_token);
     ny_alice = test.ny_alice = StateUsersX.new_object("NY", "alice", alice_value);
     tcm.assert(init_cb_names, cb_token);
     try {
       ny_alice.destroy();
-      assert.ok(false, "Expected destroy for ny_alice to throw an exception.");
+      test.ok(false, "Expected destroy for ny_alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny_alice threw exception as expected: " + e);
       aborted_save();
@@ -812,17 +942,17 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
   
   function first_save() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateUsersX, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateUsersX.add_callback(cb_name, function(previous_version, cb_finished) {
-        assert.equal(null, previous_version);
+        test.equal(null, previous_version);
         assert_ny_alice(ny_alice, "New York");
         cb_finished();
       });
     });
     ny_alice.save(function(err, result) {
-      if (err) assert.ok(false, "Error trying to save ny_alice: " + err);
+      if (err) test.ok(false, "Error trying to save ny_alice: " + err);
       else {
        logger.info("ny_alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
@@ -833,12 +963,12 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
   
   function successful_find() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var find_cb_names = ["after_find_" + callback_level, "after_initialize_" + callback_level];
     tcm.add(StateUsersX, find_cb_names, cb_token);
     StateUsersX.find("NY", "alice", function(err, result) {
-      if (err) assert.ok(false, "Error looking for ny_alice:" + err );
-      else if (!result) assert.ok(false, "Could not find ny_alice.");
+      if (err) test.ok(false, "Error looking for ny_alice:" + err );
+      else if (!result) test.ok(false, "Could not find ny_alice.");
       else {
         ny_alice = test.ny_alice = result;
         assert_ny_alice(ny_alice, "New York");
@@ -851,32 +981,32 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
   }
   
   function assert_ny_alice(version, city) {
-    assert.equal(alice_value._name, version.id);
-    assert.equal(alice_value._name, version._name);
-    assert.equal(city, version.city);
-    assert.equal(alice_value.sex, version.sex);
+    test.equal(alice_value._name, version.id);
+    test.equal(alice_value._name, version._name);
+    test.equal(city, version.city);
+    test.equal(alice_value.sex, version.sex);
   }
 
   function save_after_find() {
     var prev_city = ny_alice.city;
     var cb_token = Math.random();
     StateUsersX.callbacks = {};
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateUsersX, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateUsersX.add_callback(cb_name, function(previous_version, cb_finished) {
         assert_ny_alice(previous_version, prev_city);
-        assert.strictEqual(ny_alice, this);
+        test.strictEqual(ny_alice, this);
         cb_finished();
       });
     });
     ny_alice.city = alice_new_city
     ny_alice.save(function(err, result) {
-      if (err) assert.ok(false, "Error saving ny_alice: " + err);        
+      if (err) test.ok(false, "Error saving ny_alice: " + err);        
       else {
         tcm.assert(save_cb_names, cb_token);
         StateUsersX.find("NY", "alice", function(err, result) {
-          if (err) assert.ok(false, "Error finding ny_alice.");
+          if (err) test.ok(false, "Error finding ny_alice.");
           else {
             ny_alice = test.ny_alice = result;
             assert_ny_alice(ny_alice, alice_new_city);
@@ -893,26 +1023,26 @@ function _test_StateUsersX_user_level(assert, finished, test, column_family) {
       var cb_token = Math.random();;
       StateUsersX.add_callback("after_destroy_" + callback_level, function(previous_version, cb_finished) {
         this.after_destroy_token = cb_token;
-        assert.strictEqual(ny_alice, this);
+        test.strictEqual(ny_alice, this);
         cb_finished();
       });
       ny_alice.destroy(function(err) {
-        if (err) assert.ok(false, "Error destroying ny_alice: " + err);
+        if (err) test.ok(false, "Error destroying ny_alice: " + err);
         else {
           StateUsersX.callbacks = {}
-          assert.equal(cb_token, ny_alice.after_destroy_token);
+          test.equal(cb_token, ny_alice.after_destroy_token);
           logger.info("Successfully destroyed ny_alice.")
-          unsuccessful_find(finished);
+          unsuccessful_find(function() { test.finish(); });
         }
       });
     } catch (e) {
-      assert.ok(false, "Destroy for ny_alice threw an exception.");
+      test.ok(false, "Destroy for ny_alice threw an exception.");
     }    
   }
     
 }
 
-function _test_StateUsersX_state_level(assert, finished, test, column_family) {
+function _test_StateUsersX_state_level(test, column_family) {
 
   var StateUsersX = test.StateUsersX = ActiveColumns.get_column_family("ActiveColumnsTest", column_family);
   
@@ -932,7 +1062,7 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
   }
   
   function unsuccessful_destroy() {
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var cb_token = Math.random();
     var init_cb_names = ["after_initialize_row"]
     tcm.add(StateUsersX, init_cb_names, cb_token);
@@ -943,7 +1073,7 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
     tcm.assert(init_cb_names, cb_token);
     try {
       ny.destroy();
-      assert.ok(false, "Expected destroy for ny to throw an exception.");
+      test.ok(false, "Expected destroy for ny to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny threw exception as expected: " + e);
       aborted_save();
@@ -961,17 +1091,17 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
   
   function first_save() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateUsersX, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateUsersX.add_callback(cb_name, function(previous_version, cb_finished) {
-        assert.equal(null, previous_version);
-        assert.strictEqual(ny, this);
+        test.equal(null, previous_version);
+        test.strictEqual(ny, this);
         cb_finished();
       });
     });
     ny.save(function(err, result) {
-      if (err) assert.ok(false, "Error trying to save ny: " + err);
+      if (err) test.ok(false, "Error trying to save ny: " + err);
       else {
        logger.info("ny saved successfully.");
        tcm.assert(save_cb_names, cb_token);
@@ -982,15 +1112,15 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
   
   function successful_find() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var find_cb_names = ["after_find_row", "after_initialize_row"]
     tcm.add(StateUsersX, find_cb_names, cb_token);
     StateUsersX.find("NY", column_predicate, function(err, result) {
-      if (err) assert.ok(false, "Error looking for ny:" + err );
-      else if (!result) assert.ok(false, "Could not find ny.");
+      if (err) test.ok(false, "Error looking for ny:" + err );
+      else if (!result) test.ok(false, "Could not find ny.");
       else {      
         ny = test.ny = result;
-        assert.equal(2, ny.columns.length);
+        test.equal(2, ny.columns.length);
         tcm.assert(find_cb_names, cb_token);
         ny_alice = test.ny_alice = ny.columns[0];
         ny_bob = test.ny_bob = ny.columns[1];
@@ -1004,17 +1134,17 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
   }
   
   function assert_ny_alice(version, city) {
-    assert.equal("alice", version.id);
-    assert.equal("alice", version._name);
-    assert.equal(city, version.city);
-    assert.equal(alice_value.sex, version.sex);
+    test.equal("alice", version.id);
+    test.equal("alice", version._name);
+    test.equal(city, version.city);
+    test.equal(alice_value.sex, version.sex);
   }
 
   function assert_ny_bob(version, city) {
-    assert.equal("bob", version.id);
-    assert.equal("bob", version._name);
-    assert.equal(city, version.city);
-    assert.equal(bob_value.sex, version.sex);
+    test.equal("bob", version.id);
+    test.equal("bob", version._name);
+    test.equal(city, version.city);
+    test.equal(bob_value.sex, version.sex);
   }
 
   function save_after_find() {
@@ -1023,21 +1153,21 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
     ny.columns[1].city = bob_new_city
     var cb_token = Math.random();
     StateUsersX.callbacks = {}
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateUsersX, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateUsersX.add_callback(cb_name, function(previous_version, cb_finished) {
         assert_ny_alice(previous_version.columns[0], prev_city);
-        assert.strictEqual(ny, this);
+        test.strictEqual(ny, this);
         cb_finished();
       });
     });
     ny.save(function(err, result) {
-      if (err) assert.ok(false, "Error finding ny.");
+      if (err) test.ok(false, "Error finding ny.");
       else {
         tcm.assert(save_cb_names, cb_token);
         StateUsersX.find("NY", column_predicate, function(err, result) {
-          if (err) assert.ok(false, "Error finding ny.");
+          if (err) test.ok(false, "Error finding ny.");
           else {
             ny = test.ny = result;
             ny_alice = test.ny_alice = result.columns[0];
@@ -1057,26 +1187,26 @@ function _test_StateUsersX_state_level(assert, finished, test, column_family) {
       var cb_token = Math.random();;
       StateUsersX.add_callback("after_destroy_row", function(previous_version, cb_finished) {
         this.after_destroy_token = cb_token;
-        assert.strictEqual(ny, this);
+        test.strictEqual(ny, this);
         cb_finished();
       });
       ny.destroy(function(err) {
-        if (err) assert.ok(false, "Error destroying ny: " + err);
+        if (err) test.ok(false, "Error destroying ny: " + err);
         else {        
           logger.info("Successfully destroyed ny.")
           StateUsersX.callbacks = {}
-          assert.equal(cb_token, ny.after_destroy_token);
-          unsuccessful_find(finished);
+          test.equal(cb_token, ny.after_destroy_token);
+          unsuccessful_find(function(){ test.finish(); });
         }
       });
     } catch (e) {
-      assert.ok(false, "Destroy for ny threw an exception.");
+      test.ok(false, "Destroy for ny threw an exception.");
     }    
   }
     
 }
     
-function test_StateLastLoginUsers_user_level(assert, finished, test) {
+function test_StateLastLoginUsers_user_level(test) {
 
   var StateLastLoginUsers = test.StateLastLoginUsers = ActiveColumns.get_column_family("ActiveColumnsTest", "StateLastLoginUsers");
   
@@ -1095,7 +1225,7 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
   }
   
   function unsuccessful_destroy() {
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var init_cb_names = ["after_initialize_column"]
     var cb_token = Math.random();
     tcm.add(StateLastLoginUsers, init_cb_names, cb_token);
@@ -1103,7 +1233,7 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
     tcm.assert(init_cb_names, cb_token);
     try {
       ny_1271184168_alice.destroy();
-      assert.ok(false, "Expected destroy for ny_1271184168_alice to throw an exception.");
+      test.ok(false, "Expected destroy for ny_1271184168_alice to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny_1271184168_alice threw exception as expected: " + e);
       aborted_save();
@@ -1121,17 +1251,17 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
   
   function first_save() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(function(previous_version, cb_finished) {
-        assert.equal(null, previous_version);
+        test.equal(null, previous_version);
         assert_ny_1271184168_alice(this, "New York");
         cb_finished();
       });
     });
     ny_1271184168_alice.save(function(err, result) {
-      if (err) assert.ok(false, "Error trying to save ny_1271184168_alice: " + err);
+      if (err) test.ok(false, "Error trying to save ny_1271184168_alice: " + err);
       else {      
        logger.info("ny_1271184168_alice saved successfully.");
        tcm.assert(save_cb_names, cb_token);
@@ -1142,12 +1272,12 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
   
   function successful_find() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var find_cb_names = ["after_find_column", "after_initialize_column"];
     tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
     StateLastLoginUsers.find("NY", 1271184168, "alice", function(err, result) {
-      if (err) assert.ok(false, "Error looking for ny_1271184168_alice:" + err );
-      else if (!result) assert.ok(false, "Could not find ny_1271184168_alice.");
+      if (err) test.ok(false, "Error looking for ny_1271184168_alice:" + err );
+      else if (!result) test.ok(false, "Could not find ny_1271184168_alice.");
       else {
         ny_1271184168_alice = test.ny_1271184168_alice =  result;
         assert_ny_1271184168_alice(ny_1271184168_alice, "New York");
@@ -1160,17 +1290,17 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
   }
   
   function assert_ny_1271184168_alice(version, city) {
-    assert.equal(alice_value._name, version.id);
-    assert.equal(alice_value._name, version._name);
-    assert.equal(city, version.city);
-    assert.equal(alice_value.sex, version.sex);
+    test.equal(alice_value._name, version.id);
+    test.equal(alice_value._name, version._name);
+    test.equal(city, version.city);
+    test.equal(alice_value.sex, version.sex);
   }
 
   function save_after_find() {
     var prev_city = ny_1271184168_alice.city; 
     var cb_token = Math.random();
     StateLastLoginUsers.callbacks = {}
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, function(previous_version, cb_finished) {
@@ -1181,11 +1311,11 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
     });
     ny_1271184168_alice.city = alice_new_city
     ny_1271184168_alice.save(function(err, result) {
-      if (err) assert.ok(false, "Error saving ny_1271184168_alice: " + err);        
+      if (err) test.ok(false, "Error saving ny_1271184168_alice: " + err);        
       else {
         tcm.assert(save_cb_names, cb_token);
         StateLastLoginUsers.find("NY", 1271184168, "alice", function(err, result) {
-          if (err) assert.ok(false, "Error finding ny_1271184168_alice.");
+          if (err) test.ok(false, "Error finding ny_1271184168_alice.");
           else {
             ny_1271184168_alice = test.ny_1271184168_alice = result;
             assert_ny_1271184168_alice(ny_1271184168_alice, alice_new_city);
@@ -1202,26 +1332,26 @@ function test_StateLastLoginUsers_user_level(assert, finished, test) {
       var cb_token = Math.random();;
       StateLastLoginUsers.add_callback("after_destroy_column", function(previous_version, cb_finished) {
         this.after_destroy_token = cb_token;
-        assert.strictEqual(ny_1271184168_alice, this);
+        test.strictEqual(ny_1271184168_alice, this);
         cb_finished();
       });
       ny_1271184168_alice.destroy(function(err) {
-        if (err) assert.ok(false, "Error destroying ny_1271184168_alice: " + err);
+        if (err) test.ok(false, "Error destroying ny_1271184168_alice: " + err);
         else {
           logger.info("Successfully destroyed ny_1271184168_alice.")
           StateLastLoginUsers.callbacks = {}
-          assert.equal(cb_token, ny_1271184168_alice.after_destroy_token);
-          unsuccessful_find(finished);
+          test.equal(cb_token, ny_1271184168_alice.after_destroy_token);
+          unsuccessful_find(function() { test.finish(); });
         }
       });
     } catch (e) {
-      assert.ok(false, "Destroy for ny_1271184168_alice threw an exception.");
+      test.ok(false, "Destroy for ny_1271184168_alice threw an exception.");
     }    
   }
     
 }
 
-function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
+function test_StateLastLoginUsers_last_login_level(test) {
 
   var StateLastLoginUsers = test.StateLastLoginUsers = ActiveColumns.get_column_family("ActiveColumnsTest", "StateLastLoginUsers");
   
@@ -1242,7 +1372,7 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
   }
   
   function unsuccessful_destroy() {
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var init_cb_names = ["after_initialize_super_column"];
     var cb_token = Math.random();
     tcm.add(StateLastLoginUsers, init_cb_names, cb_token);
@@ -1253,7 +1383,7 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
     tcm.assert(init_cb_names, cb_token);
     try {
       ny_1271184168.destroy();
-      assert.ok(false, "Expected destroy for ny_1271184168 to throw an exception.");
+      test.ok(false, "Expected destroy for ny_1271184168 to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny_1271184168 threw exception as expected: " + e);
       aborted_save();
@@ -1269,17 +1399,17 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
   
   function first_save() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, function(previous_version, cb_finished) {
-        assert.equal(null, previous_version);
+        test.equal(null, previous_version);
         assert_ny_1271184168(this, 1, "New York", 0, "Jackson Heights");
         cb_finished();
       });
     });
     ny_1271184168.save(function(err, result) {
-      if (err) assert.ok(false, "Error trying to save ny_1271184168: " + err);
+      if (err) test.ok(false, "Error trying to save ny_1271184168: " + err);
       else {
        tcm.assert(save_cb_names, cb_token);
        logger.info("ny_1271184168 saved successfully.");
@@ -1290,12 +1420,12 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
   
   function successful_find() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var find_cb_names = ["after_find_super_column", "after_initialize_super_column"]
     tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
     StateLastLoginUsers.find("NY", 1271184168, column_predicate, function(err, result) {
-      if (err) assert.ok(false, "Error looking for ny_1271184168:" + err );
-      else if (!result) assert.ok(false, "Could not find ny_1271184168.");
+      if (err) test.ok(false, "Error looking for ny_1271184168:" + err );
+      else if (!result) test.ok(false, "Could not find ny_1271184168.");
       else {
         ny_1271184168 = test.ny_1271184168 = result;
         assert_ny_1271184168(ny_1271184168, 0, "New York", 1, "Jackson Heights");
@@ -1308,19 +1438,19 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
   }
   
   function assert_ny_1271184168(version, alice_index, alice_city, bob_index, bob_city) {
-    assert.equal(1271184168, version.id);
-    assert.equal(1271184168, version._name);
-    assert.equal(2, ny_1271184168.columns.length);
+    test.equal(1271184168, version.id);
+    test.equal(1271184168, version._name);
+    test.equal(2, ny_1271184168.columns.length);
     var alice_version = version.columns[alice_index];
-    assert.equal(alice_value._name, alice_version.id);
-    assert.equal(alice_value._name, alice_version._name);
-    assert.equal(alice_city, alice_version.city);
-    assert.equal(alice_value.sex, alice_version.sex);
+    test.equal(alice_value._name, alice_version.id);
+    test.equal(alice_value._name, alice_version._name);
+    test.equal(alice_city, alice_version.city);
+    test.equal(alice_value.sex, alice_version.sex);
     var bob_version = version.columns[bob_index];
-    assert.equal(bob_value._name, bob_version.id);
-    assert.equal(bob_value._name, bob_version._name);
-    assert.equal(bob_city, bob_version.city);
-    assert.equal(bob_value.sex, bob_version.sex);
+    test.equal(bob_value._name, bob_version.id);
+    test.equal(bob_value._name, bob_version._name);
+    test.equal(bob_city, bob_version.city);
+    test.equal(bob_value.sex, bob_version.sex);
   }
   
 
@@ -1329,7 +1459,7 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
     var bob_prev_city = ny_1271184168.columns[1].city;
     var cb_token = Math.random();
     StateLastLoginUsers.callbacks = {}
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, function(previous_version, cb_finished) {
@@ -1341,11 +1471,11 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
     ny_1271184168.columns[0].city = alice_new_city
     ny_1271184168.columns[1].city = bob_new_city
     ny_1271184168.save(function(err, result) {
-      if (err) assert.ok(false, "Error saving ny_1271184168: " + err);        
+      if (err) test.ok(false, "Error saving ny_1271184168: " + err);        
       else {
         tcm.assert(save_cb_names, cb_token);
         StateLastLoginUsers.find("NY", 1271184168, column_predicate, function(err, result) {
-          if (err) assert.ok(false, "Error finding ny_1271184168.");
+          if (err) test.ok(false, "Error finding ny_1271184168.");
           else {
             ny_1271184168 = test.ny_1271184168 = result;
             assert_ny_1271184168(ny_1271184168, 0, alice_new_city, 1, bob_new_city);
@@ -1362,26 +1492,26 @@ function test_StateLastLoginUsers_last_login_level(assert, finished, test) {
       var cb_token = Math.random();;
       StateLastLoginUsers.add_callback("after_destroy_super_column", function(previous_version, cb_finished) {
         this.after_destroy_token = cb_token;
-        assert.strictEqual(ny_1271184168, this);
+        test.strictEqual(ny_1271184168, this);
         cb_finished();
       });
       ny_1271184168.destroy(function(err) {
-        if (err) assert.ok(false, "Error destroying ny_1271184168: " + err);
+        if (err) test.ok(false, "Error destroying ny_1271184168: " + err);
         else {
           logger.info("Successfully destroyed ny_1271184168.")
           StateLastLoginUsers.callbacks = {}
-          assert.equal(cb_token, ny_1271184168.after_destroy_token);
-          unsuccessful_find( finished );
+          test.equal(cb_token, ny_1271184168.after_destroy_token);
+          unsuccessful_find(function(){ test.finish(); });
         }
       });
     } catch (e) {
-      assert.ok(false, "Destroy for ny_1271184168 threw an exception.");
+      test.ok(false, "Destroy for ny_1271184168 threw an exception.");
     }    
   }
     
 }
 
-function test_StateLastLoginUsers_state_level(assert, finished, test) {
+function test_StateLastLoginUsers_state_level(test) {
 
   var ny, ny_1271184168, ny_1271184169;
   var StateLastLoginUsers = test.StateLastLoginUsers = ActiveColumns.get_column_family("ActiveColumnsTest", "StateLastLoginUsers");
@@ -1406,7 +1536,7 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
   }
   
   function unsuccessful_destroy() {
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var init_cb_names = ["after_initialize_row"];
     var cb_token = Math.random();
     tcm.add(StateLastLoginUsers, init_cb_names, cb_token);
@@ -1417,7 +1547,7 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
     tcm.assert(init_cb_names, cb_token);
     try {
       ny.destroy();
-      assert.ok(false, "Expected destroy for ny to throw an exception.");
+      test.ok(false, "Expected destroy for ny to throw an exception.");
     } catch (e) {
       logger.info("Destroy for ny threw exception as expected: " + e);
       aborted_save();
@@ -1435,17 +1565,17 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
   
   function first_save() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, function(previous_version, cb_finished) {
-        assert.equal(null, previous_version);
-        assert.strictEqual(ny, this);
+        test.equal(null, previous_version);
+        test.strictEqual(ny, this);
         cb_finished();
       });
     });
     ny.save(function(err, result) {
-      if (err) assert.ok(false, "Error trying to save ny: " + err);
+      if (err) test.ok(false, "Error trying to save ny: " + err);
       else {
        tcm.assert(save_cb_names, cb_token);
        logger.info("ny saved successfully.");
@@ -1456,15 +1586,15 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
   
   function successful_find() {
     var cb_token = Math.random();
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     var find_cb_names = ["after_find_row", "after_initialize_row"]
     tcm.add(StateLastLoginUsers, find_cb_names, cb_token);
     StateLastLoginUsers.find("NY", column_predicate, function(err, result) {
-      if (err) assert.ok(false, "Error looking for ny:" + err );
-      else if (!result) assert.ok(false, "Could not find ny.");
+      if (err) test.ok(false, "Error looking for ny:" + err );
+      else if (!result) test.ok(false, "Could not find ny.");
       else {
         ny = test.ny = result;
-        assert.equal(2, ny.columns.length);
+        test.equal(2, ny.columns.length);
         tcm.assert(find_cb_names, cb_token);
         ny_1271184168 = test.ny_1271184168 = ny.columns[0];
         ny_1271184169 = ny.columns[1];
@@ -1478,35 +1608,35 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
   }
   
   function assert_ny_1271184168(version, alice_index, alice_city, bob_index, bob_city) {
-    assert.equal(1271184168, version.id);
-    assert.equal(1271184168, version._name);
-    assert.equal(2, version.columns.length);
+    test.equal(1271184168, version.id);
+    test.equal(1271184168, version._name);
+    test.equal(2, version.columns.length);
     var alice_version = version.columns[alice_index];
-    assert.equal(alice_value._name, alice_version.id);
-    assert.equal(alice_value._name, alice_version._name);
-    assert.equal(alice_city, alice_version.city);
-    assert.equal(alice_value.sex, alice_version.sex);
+    test.equal(alice_value._name, alice_version.id);
+    test.equal(alice_value._name, alice_version._name);
+    test.equal(alice_city, alice_version.city);
+    test.equal(alice_value.sex, alice_version.sex);
     var bob_version = version.columns[bob_index];
-    assert.equal(bob_value._name, bob_version.id);
-    assert.equal(bob_value._name, bob_version._name);
-    assert.equal(bob_city, bob_version.city);
-    assert.equal(bob_value.sex, bob_version.sex);
+    test.equal(bob_value._name, bob_version.id);
+    test.equal(bob_value._name, bob_version._name);
+    test.equal(bob_city, bob_version.city);
+    test.equal(bob_value.sex, bob_version.sex);
   }
 
   function assert_ny_1271184169(version, chuck_index, chuck_city, dave_index, dave_city) {
-    assert.equal(1271184169, version.id);
-    assert.equal(1271184169, version._name);
-    assert.equal(2, version.columns.length);
+    test.equal(1271184169, version.id);
+    test.equal(1271184169, version._name);
+    test.equal(2, version.columns.length);
     var chuck_version = version.columns[chuck_index];
-    assert.equal(chuck_value._name, chuck_version.id);
-    assert.equal(chuck_value._name, chuck_version._name);
-    assert.equal(chuck_city, chuck_version.city);
-    assert.equal(chuck_value.sex, chuck_version.sex);
+    test.equal(chuck_value._name, chuck_version.id);
+    test.equal(chuck_value._name, chuck_version._name);
+    test.equal(chuck_city, chuck_version.city);
+    test.equal(chuck_value.sex, chuck_version.sex);
     var dave_version = version.columns[dave_index];
-    assert.equal(dave_value._name, dave_version.id);
-    assert.equal(dave_value._name, dave_version._name);
-    assert.equal(dave_city, dave_version.city);
-    assert.equal(dave_value.sex, dave_version.sex);
+    test.equal(dave_value._name, dave_version.id);
+    test.equal(dave_value._name, dave_version._name);
+    test.equal(dave_city, dave_version.city);
+    test.equal(dave_value.sex, dave_version.sex);
   }
 
   function save_after_find() {
@@ -1516,13 +1646,13 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
     var dave_prev_city = ny.columns[1].columns[1].city;
     var cb_token = Math.random();
     StateLastLoginUsers.callbacks = {}
-    var tcm = tokenCallbackManager();
+    var tcm = tokenCallbackManager(test);
     tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
       StateLastLoginUsers.add_callback(cb_name, function(previous_version, cb_finished) {
         assert_ny_1271184168(previous_version.columns[0], 0, alice_prev_city, 1, bob_prev_city);
         assert_ny_1271184169(previous_version.columns[1], 0, chuck_prev_city, 1, dave_prev_city);
-        assert.strictEqual(ny, this);
+        test.strictEqual(ny, this);
         cb_finished();
       });
     });
@@ -1531,11 +1661,11 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
     ny.columns[1].columns[0].city = chuck_new_city
     ny.columns[1].columns[1].city = dave_new_city
     ny.save(function(err, result) {
-      if (err) assert.ok(false, "Error saving ny: " + err);        
+      if (err) test.ok(false, "Error saving ny: " + err);        
       else {
         tcm.assert(save_cb_names, cb_token);
         StateLastLoginUsers.find("NY", column_predicate, function(err, result) {
-          if (err) assert.ok(false, "Error finding ny.");
+          if (err) test.ok(false, "Error finding ny.");
           else {
             ny = test.ny = result;
             ny_1271184168 = test.ny_1271184168 = result.columns[0];
@@ -1555,26 +1685,26 @@ function test_StateLastLoginUsers_state_level(assert, finished, test) {
       var cb_token = Math.random();;
       StateLastLoginUsers.add_callback("after_destroy_row", function(event_listeners, cb_finished) {
         this.after_destroy_token = cb_token;
-        assert.strictEqual(ny, this);
+        test.strictEqual(ny, this);
         cb_finished();
       });
       ny.destroy(function(err) {
-        if (err) assert.ok(false, "Error destroying ny: " + err);
+        if (err) test.ok(false, "Error destroying ny: " + err);
         else {
           logger.info("Successfully destroyed ny.")
           StateLastLoginUsers.callbacks = {}
-          assert.equal(cb_token, ny.after_destroy_token);
-          unsuccessful_find( finished );
+          test.equal(cb_token, ny.after_destroy_token);
+          unsuccessful_find( function() { test.finish() } );
         }
       });
     } catch (e) {
-      assert.ok(false, "Destroy for ny threw an exception.");
+      test.ok(false, "Destroy for ny threw an exception.");
     }    
   }
     
 }
 
-function test_column_value_types(assert, finished, test) {
+function test_column_value_types(test) {
   var ColumnValueTypeTest = ActiveColumns.get_column_family("ActiveColumnsTest", "ColumnValueTypeTest");  
   var date_val = new Date();
   var number_val = Math.random();
@@ -1585,16 +1715,16 @@ function test_column_value_types(assert, finished, test) {
   ]);
   _test_column_value_types(ColumnValueTypeTest, o, function(result) {
     var date_col = _.detect(result.columns, function(col) {return col.name == "date_col";});
-    assert.ok(date_col.value.valueOf, 
+    test.ok(date_col.value.valueOf, 
               "Doesn't look like a date object, no valueOf() method");
-    assert.equal(date_val.valueOf(), date_col.value.valueOf());
+    test.equal(date_val.valueOf(), date_col.value.valueOf());
     var number_col = _.detect(result.columns, function(col) {return col.name == "number_col";});
-    assert.equal("number", typeof number_col.value);
-    assert.equal(number_val, number_col.value);    
-  }, assert, finished, test);
+    test.equal("number", typeof number_col.value);
+    test.equal(number_val, number_col.value);    
+  }, test);
 }
 
-function test_column_value_types_static(assert, finished, test) {
+function test_column_value_types_static(test) {
   var ColumnValueTypeTestStatic = ActiveColumns.get_column_family("ActiveColumnsTest", "ColumnValueTypeTestStatic");  
   var date_val = new Date();
   var number_val = Math.random();
@@ -1603,34 +1733,34 @@ function test_column_value_types_static(assert, finished, test) {
    date_col: date_val, number_col: number_val, json_col: json_val
   });
   _test_column_value_types(ColumnValueTypeTestStatic, o, function(result) {
-    assert.ok(result.date_col.valueOf, 
+    test.ok(result.date_col.valueOf, 
               "Doesn't look like a date object, no valueOf() method");
-    assert.equal(date_val.valueOf(), result.date_col.valueOf());
-    assert.equal("number", typeof result.number_col);
-    assert.equal(number_val, result.number_col);
-    assert.equal(json_val.foo, result.json_col.foo);
-    assert.equal(json_val.bar, result.json_col.bar);
-  }, assert, finished, test);
+    test.equal(date_val.valueOf(), result.date_col.valueOf());
+    test.equal("number", typeof result.number_col);
+    test.equal(number_val, result.number_col);
+    test.equal(json_val.foo, result.json_col.foo);
+    test.equal(json_val.bar, result.json_col.bar);
+  }, test);
 }
 
-function _test_column_value_types(cf, o, assert_func, assert, finished, test) {
+function _test_column_value_types(cf, o, assert_func, test) {
   o.save(function(err, id) {
-    if (err) assert.ok(false, "Error trying to save object: " + err);
+    if (err) test.ok(false, "Error trying to save object: " + err);
     else {
      cf.find(id, {column_names: ["date_col", "number_col", "json_col"]}, function(err, result) {
-       if (err) assert.ok(false, "Error trying to find object: " + err)
+       if (err) test.ok(false, "Error trying to find object: " + err)
        else {
          o = test.o = result;
          assert_func(result);
          logger.info("Object successfully returned from find with correct column value types.")
-         finished();
+         test.finish();
        } 
      });
    }
   });
 }
 
-function test_auto_key_generation(assert, finished, test) {
+function test_auto_key_generation(test) {
   var alice, bob;
   var Users1 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users1");
   var uuid_regex = /^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$/;
@@ -1639,11 +1769,11 @@ function test_auto_key_generation(assert, finished, test) {
    city: "New York", state: "NY", last_login: 1271184168, sex: "F"
   });
   alice.save(function(err, result) {
-    if (err) assert.ok(false, "Error trying to save alice: " + err);
+    if (err) test.ok(false, "Error trying to save alice: " + err);
     else {    
-     assert.ok(result.match(uuid_regex),
+     test.ok(result.match(uuid_regex),
                "Save for alice failed to return a UUID.");
-     assert.equal(result, alice.key,
+     test.equal(result, alice.key,
                   "Save for alice failed to set key property.");
      logger.info("Save for alice successfully returned a UUID.")
      do_bob_now();
@@ -1655,14 +1785,14 @@ function test_auto_key_generation(assert, finished, test) {
      city: "Jackson Heights", state: "NY", last_login: 1271184169, sex: "M"
     });
     bob.save(function(err, result) {
-      if (err) assert.ok(false, "Error trying to save bob: " + err);
+      if (err) test.ok(false, "Error trying to save bob: " + err);
       else {      
-       assert.ok(result.match(uuid_regex),
+       test.ok(result.match(uuid_regex),
                  "Save for bob failed to return a UUID.");
-       assert.equal(result, bob.key,
+       test.equal(result, bob.key,
                     "Save for bob failed to set key property.");
        logger.info("Save for bob successfully returned a UUID.");
-       finished();
+       test.finish();
      }
     });    
   }
@@ -1672,13 +1802,13 @@ function test_auto_key_generation(assert, finished, test) {
 function create_unsuccessful_find_callback(object_name, not_found_action) {
   return function(err, result) {
     if (err) {
-      assert.ok(false, "Error when attempting to find " + object_name + ": " + err);
+      test.ok(false, "Error when attempting to find " + object_name + ": " + err);
     }
     else if (!result) {
       logger.info(object_name + " returned null as expected.")
       not_found_action();
     } else {
-      assert.ok(false, "Found " + object_name + " unexpectedly.")
+      test.ok(false, "Found " + object_name + " unexpectedly.")
     }    
   };
 }
@@ -1693,12 +1823,12 @@ function _aborted_save(column_family, level, object, object_name, next) {
       column_family.callbacks = {}
       next();      
     } else {
-      assert.ok(false, "Save for " + object_name + " unexpectedly succeeded.");      
+      test.ok(false, "Save for " + object_name + " unexpectedly succeeded.");      
     }
   });    
 }
 
-function tokenCallbackManager() {
+function tokenCallbackManager(test) {
   var callbackResults = {};
   
   return {
@@ -1731,7 +1861,7 @@ function tokenCallbackManager() {
     assert: function(cb_names, token) {
       cb_names.forEach(function(cb_name) {
         [0, 1].forEach(function(i) {
-          assert.equal(callbackResults[cb_name][i].name, i);
+          test.equal(callbackResults[cb_name][i].name, i);
         })
       })
     }    
