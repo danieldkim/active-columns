@@ -757,7 +757,7 @@ _**Note**: This is the one type of callback event that is executed
 should be reserved for simple things such as setting the prototype of an object,
 mixing in some methods, etc.  They also do not receive any arguments.
 
-    Users1.add_callback("after_initialize", function() {
+    Users1.add_callback("after_initialize_row", function() {
       Object.defineProperty(this, "last_login_date", {
         get: function() { return convert_seconds_to_date(last_login); },
         set: function(value) { last_login = convert_date_to_seconds(value); }
