@@ -1254,7 +1254,7 @@ function test_StateLastLoginUsers_user_level(test) {
     var tcm = tokenCallbackManager(test);
     tcm.add(StateLastLoginUsers, save_cb_names, cb_token);
     save_cb_names.forEach(function(cb_name) {
-      StateLastLoginUsers.add_callback(function(previous_version, cb_finished) {
+      StateLastLoginUsers.add_callback("after_save_column", function(previous_version, cb_finished) {
         test.equal(null, previous_version);
         assert_ny_1271184168_alice(this, "New York");
         cb_finished();
