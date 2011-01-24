@@ -386,6 +386,9 @@ keyspace for the object model examples above is initialized:
           StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
         }
       }
+    }, function(err, keyspaces) {
+      if (err) sys.puts("Error initializing keyspaces: " + err);
+      else sys.puts("Keyspaces initialized.");
     });
 
 **cassandra\_port** and **cassandra\_host** should point to your Cassandra-Node
@@ -417,10 +420,14 @@ If you want to just initialize a single keyspace you can use the
         StateUsers2: { column_value_type: "json" },
         StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
       }
+    }, function(err, keyspace) {
+      if (err) sys.puts("Error initializing keyspace: " + err);
+      else sys.puts("Keyspace initialized.");
     });
 
 Finally, if you just want to initialize a single column family, there's
-<code>initialize\_column\_family</code>:
+<code>initialize\_column\_family</code> (this requires you to have initialized
+the keyspace first):
 
     ActiveColumns.initialize_column_family("ActiveColumnsTest", "Users1", {
       column_names: ["city", "state", "last_login", "sex"]

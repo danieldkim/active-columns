@@ -1,6 +1,6 @@
 var ActiveColumns = require('active-columns');
 
-exports.do_it = function() {
+exports.do_it = function(callback) {
   ActiveColumns.initialize_keyspaces({ 
     ActiveColumnsTest: {
       cassandra_port: 10000,
@@ -22,6 +22,6 @@ exports.do_it = function() {
         }
       }
     }
-  });
+  }, callback);
   
 };

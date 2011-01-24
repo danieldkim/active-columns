@@ -80,7 +80,7 @@ function _test_create_mem_object(test, name, fixed_names, column_value_type) {
   cf[(name ? 'sub' : '') + 'column_names'] = fixed_names ? ["col_1", "col_2"] : undefined,
   cf[(name ? 'sub' : '') + 'column_value_type'] = column_value_type
   
-  ActiveColumns.initialize_keyspaces({ "TestKeyspace": { column_families: {"TestColumnFamily":cf} } });
+  ActiveColumns.initialize_keyspaces({ "TestKeyspace": { column_families: {"TestColumnFamily":cf} } }, function(err, keyspace) {
 
   var val_1 = '{"col_a":"1/a", "col_b":"1/b"}',
       val_2 = '{"col_a":"2/a", "col_b":"2/b"}'
@@ -130,5 +130,8 @@ function _test_create_mem_object(test, name, fixed_names, column_value_type) {
   }
 
   test.finish();
+
+  });
+  
 }
 

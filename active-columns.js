@@ -1,6 +1,7 @@
 var sys = require('sys');
 var _ = require('underscore')._
 var events = require('events')
+var async = require('async')
 
 var no_op_fn = function() {}
 var logger  = { isDebugEnabled: function() {return false} };
@@ -992,25 +993,42 @@ function call_callbacks_sequentially(callbacks, o, finish, error_handler, with_p
   cb.apply(o, args);
 }
 
-function initialize_keyspaces(config) {
+function initialize_keyspaces(config, callback) {
+  var steps = [];
   _.forEach(config, function(keyspace_config, keyspace_name){
-    initialize_keyspace(keyspace_name, keyspace_config);
+    steps.push(function(callback) {
+      initialize_keyspace(keyspace_name, keyspace_config, callback);      
+    });
   });
-  return keyspaces;
+  async.parallel(steps, function(err) {
+    if (err) callback(err);
+    else callback(null, keyspaces);
+  })
 };
 
-function initialize_keyspace(keyspace_name, config) {
+function initialize_keyspace(keyspace_name, config, callback) {
+
   var ks = keyspaces[keyspace_name] = {}
   ks.name = keyspace_name
-  ks.cassandra = require('cassandra-node-client').create(
-                   config.cassandra_port, config.cassandra_host, logger)
   ks.column_families = {}
   if (config.column_families) {
     _.forEach(config.column_families, function(cf_config, cf_name) {
       initialize_column_family(ks.name, cf_name, cf_config);
     });
-  }
-  return ks;
+  }    
+  ks.cassandra = require('cassandra-node-client').create(
+                   config.cassandra_port, config.cassandra_host, logger)
+  ks.cassandra.describe_keyspace(ks.name, function(err, result) {
+    if (err) {
+     logger.error("Failed to get keyspace description from Cassandra for " + 
+                     ks.name + ":" + err);
+     callback(err); 
+    }
+    _.forEach(result, function(column_family, column_family_name) {
+      ks.column_families[column_family_name].type = column_family.Type;
+    });
+    callback(null, ks);
+  });  
 }
 
 function initialize_column_family(keyspace_name, column_family_name, config) {
@@ -1026,20 +1044,6 @@ function initialize_column_family(keyspace_name, column_family_name, config) {
     subcolumn_value_type: config.subcolumn_value_type,
     callbacks: config.callbacks || {}
   };
-
-  var request = ks.cassandra.describe_keyspace(ks.name, function(err, result) {
-    if (err) {
-      logger.error("Failed to get keyspace description from Cassandra for " + 
-                      ks.name + ":" + err);
-      return; 
-    }
-    _.forEach(result, function(res_column_family, res_column_family_name) {
-      if (column_family_name == res_column_family_name)
-        cf.type = res_column_family.Type;
-    });
-    logger.info("Initialized column family " + ks.name + "/" + column_family_name + 
-                  " with Cassandra keyspace description");
-  });
   
   cf.add_callback = function(name, func) {
     var cb_list = this.callbacks[name];

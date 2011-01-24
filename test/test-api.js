@@ -13,17 +13,19 @@ var async = require('async');
 
 var ActiveColumns = require('active-columns');
 ActiveColumns.set_logger(logger);
-require('./init-test-keyspace').do_it();
 
 var test_util = require('test-util');
 var async_testing = require('async_testing')
   , wrap = async_testing.wrap
   ;
 
-// if this module is the script being run, then run the tests:  
-if (module == require.main) {
-  test_util.run(__filename, module.exports);
-}
+require('./init-test-keyspace').do_it(function(err, keyspaces){  
+  if (err) throw new Error("Could not initialize keyspaces");  
+  // if this module is the script being run, then run the tests:  
+  if (module == require.main) {
+    test_util.run(__filename, module.exports);
+  }
+});
 
 var users1Suite = wrap({
   suiteSetup: function(done) {
@@ -1867,3 +1869,4 @@ function tokenCallbackManager(test) {
     }    
   }
 }
+

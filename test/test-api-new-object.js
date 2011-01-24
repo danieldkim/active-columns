@@ -1,3 +1,7 @@
+require('./init-test-keyspace').do_it(function(err, keyspaces) {
+
+if (err) throw new Error("Could not initialize keyspace");
+
 var assert = require('assert');
 var log4js = require('log4js-node');
 log4js.addAppender(log4js.consoleAppender());
@@ -10,9 +14,7 @@ var _ = require('underscore')._
 
 var ActiveColumns = require('active-columns');
 ActiveColumns.set_logger(logger);
-require('./init-test-keyspace').do_it();
-
-
+  
 var Users1 = ActiveColumns.get_column_family("ActiveColumnsTest", "Users1");
 alice = Users1.new_object("alice", {
  city: "New York", state: "NY", last_login: 1271184168, sex: "F"
@@ -66,3 +68,5 @@ var ny = StateLastLoginUsers.new_object("NY", [
 ]);
 sys.puts(sys.inspect(ny));
 sys.puts("JSON: " + JSON.stringify(ny));
+
+});
