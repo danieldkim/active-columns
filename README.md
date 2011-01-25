@@ -453,7 +453,7 @@ objects).
 
 ### Methods
 
-#### {ActiveColumns}.initialize\_keyspaces( configs )
+#### {ActiveColumns}.initialize\_keyspaces( configs, callback )
 
 Initializes all of the keyspaces in {ActiveColumns} with the configuration
 specified in the *config* parameter. e.g.:
@@ -472,9 +472,12 @@ specified in the *config* parameter. e.g.:
           StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
         }
       }
+    }, function(err, keyspaces) {
+      if (err) sys.puts("Error initializing keyspaces: " + err);
+      else sys.puts("Keyspaces initialized.");
     });
 
-#### {ActiveColumns}.initialize\_keyspace( keyspace\_name, config )
+#### {ActiveColumns}.initialize\_keyspace( keyspace\_name, config, callback )
 
 Initializes the specified keyspace in {ActiveColumns} with the configuration
 specified in the *config* parameter. e.g.:
@@ -491,9 +494,12 @@ specified in the *config* parameter. e.g.:
         StateUsers2: { column_value_type: "json" },
         StateLastLoginUsers: { type: "Super", subcolumn_value_type: "json" }
       }
+    }, function(err, keyspaces) {
+      if (err) sys.puts("Error initializing keyspaces: " + err);
+      else sys.puts("Keyspaces initialized.");
     });
 
-#### {ActiveColumns}.initialize\_keyspace( keyspace\_name, column\_family\_name, config )
+#### {ActiveColumns}.initialize\_column\_family( keyspace\_name, column\_family\_name, config )
 
 Initializes the specified column family in {ActiveColumns} with the
 configuration specified in the *config* parameter. e.g.:
@@ -509,6 +515,8 @@ configuration specified in the *config* parameter. e.g.:
         ]
       }      
     });
+
+You must initialize the keyspace before calling this method.
 
 #### {ActiveColumns}.get\_column\_family( keyspace\_name, column\_family )
 
